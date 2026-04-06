@@ -8,6 +8,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -94,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     token,
     isLoading,
+    isAdmin: user?.isAdmin ?? false,
     login,
     register,
     logout,

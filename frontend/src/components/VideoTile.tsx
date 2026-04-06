@@ -52,16 +52,19 @@ export default function VideoTile({
       ref={containerRef}
       className="relative bg-meeting-surface rounded-xl overflow-hidden flex items-center justify-center"
     >
-      {/* Video element */}
-      {stream && isVideoEnabled ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={`w-full h-full object-cover ${isMirror ? 'scale-x-[-1]' : ''}`}
-        />
-      ) : (
+      {/* Video element — always in DOM so srcObject binding survives toggle */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        className={`w-full h-full object-cover ${isMirror ? 'scale-x-[-1]' : ''} ${
+          stream && isVideoEnabled ? '' : 'hidden'
+        }`}
+      />
+
+      {/* Avatar shown when video is off */}
+      {(!stream || !isVideoEnabled) && (
         <div className="flex flex-col items-center justify-center gap-3 w-full h-full min-h-[120px]">
           <div className="w-16 h-16 rounded-full bg-meeting-accent/20 flex items-center justify-center">
             <span className="text-2xl font-bold text-meeting-accent">{initials}</span>

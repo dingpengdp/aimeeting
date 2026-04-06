@@ -29,7 +29,7 @@ interface UseWebRTCReturn {
   isScreenSharing: boolean;
   screenSharingPeerIds: Set<string>;
   toggleAudio: () => void;
-  toggleVideo: () => void;
+  toggleVideo: () => void | Promise<void>;
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => void;
   sendDataMessage: (targetId: string | 'all', msg: DataChannelMessage) => void;
@@ -230,15 +230,38 @@ export function useWebRTC({
     broadcastMediaState(track.enabled, localStreamRef.current?.getVideoTracks()[0]?.enabled ?? true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleVideo = useCallback(() => {
+  const toggleVideo = useCallback(async () => {
     const stream = localStreamRef.current;
     if (!stream) return;
     const track = stream.getVideoTracks()[0];
-    if (!track) return;
+
+    // Re-enabling video: if track is missing or already ended, get a fresh camera track
+    if (!track || track.readyState === 'ended') {
+      if (!isVideoEnabled) {
+        try {
+          const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const newTrack = newStream.getVideoTracks()[0];
+          // Replace in localStream so the local preview updates
+          stream.getVideoTracks().forEach((t) => { t.stop(); stream.removeTrack(t); });
+          stream.addTrack(newTrack);
+          // Replace in all peer senders
+          for (const peer of peersRef.current.values()) {
+            const sender = peer.connection.getSenders().find((s) => s.track?.kind === 'video');
+            if (sender) sender.replaceTrack(newTrack).catch(console.error);
+          }
+          setIsVideoEnabled(true);
+          broadcastMediaState(stream.getAudioTracks()[0]?.enabled ?? true, true);
+        } catch {
+          console.error('无法重新获取摄像头权限');
+        }
+      }
+      return;
+    }
+
     track.enabled = !track.enabled;
     setIsVideoEnabled(track.enabled);
-    broadcastMediaState(localStreamRef.current?.getAudioTracks()[0]?.enabled ?? true, track.enabled);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    broadcastMediaState(stream.getAudioTracks()[0]?.enabled ?? true, track.enabled);
+  }, [isVideoEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const broadcastMediaState = (audioEnabled: boolean, videoEnabled: boolean) => {
     const msg: DataChannelMessage = {

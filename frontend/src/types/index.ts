@@ -3,6 +3,7 @@ export interface AuthUser {
   email: string;
   name: string;
   createdAt: string;
+  isAdmin: boolean;
 }
 
 export interface AuthResponse {
@@ -26,6 +27,16 @@ export interface RoomSummary {
 export interface ClientConfig {
   iceServers: RTCIceServer[];
 }
+
+export interface AiServiceConfig {
+  asrBaseUrl: string;
+  asrModel: string;
+  /** `'***set***'` when an API key is configured; `''` when not set. */
+  asrApiKey: string;
+  llmBaseUrl: string;
+  llmModel: string;
+  llmApiKey: string;  /** HuggingFace token for downloading gated models. Masked when set. */
+  hfToken: string;}
 
 export interface RoomInviteResponse {
   room: RoomSummary;

@@ -13,10 +13,12 @@ import {
   UserCircle2,
   KeyRound,
   Calendar,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import type { RoomSummary } from '../types';
+import AiSettingsPanel from '../components/AiSettingsPanel';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -25,7 +27,9 @@ function isValidEmail(value: string): boolean {
 export default function Home() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, login, register, logout, isLoading } = useAuth();
+  const { user, login, register, logout, isAdmin, isLoading } = useAuth();
+
+  const [showAiSettings, setShowAiSettings] = useState(false);
 
   const [name, setName] = useState('');
   const [roomInput, setRoomInput] = useState('');
@@ -363,12 +367,28 @@ export default function Home() {
                   <div className="w-11 h-11 rounded-full bg-meeting-accent/20 flex items-center justify-center">
                     <UserCircle2 className="w-6 h-6 text-meeting-accent" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-white font-medium">{user.name}</p>
-                    <p className="text-slate-400 text-sm">{user.email}</p>
+                    <p className="text-slate-400 text-sm truncate">{user.email}</p>
                   </div>
+                  {isAdmin && (
+                    <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5 flex-shrink-0">
+                      管理员
+                    </span>
+                  )}
                 </div>
               </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setShowAiSettings(true)}
+                  className="w-full bg-meeting-bg border border-meeting-border hover:bg-meeting-border text-slate-300 hover:text-white py-3 rounded-xl
+                             transition-colors flex items-center justify-center gap-2"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  AI 服务配置
+                </button>
+              )}
               <button
                 type="button"
                 onClick={logout}
@@ -582,6 +602,18 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {/* Admin: AI Settings modal */}
+      {showAiSettings && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAiSettings(false); }}
+        >
+          <div className="bg-meeting-surface border border-meeting-border rounded-2xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col overflow-hidden">
+            <AiSettingsPanel onClose={() => setShowAiSettings(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

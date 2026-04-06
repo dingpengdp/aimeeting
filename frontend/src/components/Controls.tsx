@@ -1,9 +1,9 @@
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  MessageSquare, Circle, Sparkles, MousePointer2, PhoneOff, Shield, UserPlus,
+  MessageSquare, Circle, Sparkles, MousePointer2, PhoneOff, Shield, UserPlus, SlidersHorizontal,
 } from 'lucide-react';
 
-type PanelKey = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | null;
+type PanelKey = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | 'ai-settings' | null;
 
 interface ControlsProps {
   isAudioEnabled: boolean;
@@ -21,6 +21,8 @@ interface ControlsProps {
   onToggleRemoteControl: () => void;
   onToggleInvite: () => void;
   onToggleSecurity: () => void;
+  onToggleAiSettings: () => void;
+  isAdmin?: boolean;
   onLeave: () => void;
 }
 
@@ -77,6 +79,8 @@ export default function Controls({
   onToggleRemoteControl,
   onToggleInvite,
   onToggleSecurity,
+  onToggleAiSettings,
+  isAdmin = false,
   onLeave,
 }: ControlsProps) {
   return (
@@ -131,6 +135,12 @@ export default function Controls({
         <ControlBtn onClick={onToggleSecurity} active={activePanelKey === 'security'} label="权限">
           <Shield className="w-5 h-5" />
         </ControlBtn>
+
+        {isAdmin && (
+          <ControlBtn onClick={onToggleAiSettings} active={activePanelKey === 'ai-settings'} label="AI配置">
+            <SlidersHorizontal className="w-5 h-5" />
+          </ControlBtn>
+        )}
 
         <div className="w-px h-8 bg-meeting-border mx-1" />
 

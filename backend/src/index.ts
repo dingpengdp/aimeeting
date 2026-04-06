@@ -26,7 +26,8 @@ import bcrypt from 'bcryptjs';
 import { RoomManager } from './rooms';
 import { setupSocketHandlers } from './socketHandlers';
 import { aiService } from './aiService';
-import { AuthService, attachSocketUser, requireAuth, type AuthenticatedRequest } from './auth';
+import { aiConfigService } from './aiConfigService';
+import { AuthService, attachSocketUser, requireAuth, requireAdminAuth, type AuthenticatedRequest } from './auth';
 import { getClientConfig } from './clientConfig';
 import { createRateLimiter } from './rateLimit';
 import { PasswordResetService } from './passwordResetService';
@@ -85,6 +86,7 @@ io.use(attachSocketUser(authService));
 setupSocketHandlers(io, roomManager);
 
 const requireUser = requireAuth(authService);
+const requireAdmin = requireAdminAuth(authService);
 const authLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -239,6 +241,90 @@ app.get('/api/health', (_req, res) => {
 // ── Client Config ──────────────────────────────────────────────────────────
 app.get('/api/config/client', requireUser, (_req, res) => {
   res.json(getClientConfig());
+});
+
+// ── AI Config ──────────────────────────────────────────────────────────────
+app.get('/api/config/ai', requireUser, (_req, res) => {
+  res.json(aiConfigService.getPublicConfig());
+});
+
+app.put('/api/config/ai', requireAdmin, (req: Request, res: Response) => {
+  try {
+    aiConfigService.updateConfig(req.body);
+    // Reset cached OpenAI clients so next request picks up new settings
+    aiService.resetClients();
+    res.json(aiConfigService.getPublicConfig());
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : '保存配置失败' });
+  }
+});
+
+app.post('/api/config/ai/test', requireAdmin, async (req: Request, res: Response) => {
+  const { type, baseUrl, model, apiKey, token } = req.body as {
+    type?: string; baseUrl?: string; model?: string; apiKey?: string; token?: string;
+  };
+  if (type === 'hf') {
+    const result = await aiService.testHfToken(token ?? '');
+    return res.json(result);
+  }
+  if (type !== 'asr' && type !== 'llm') {
+    return res.status(400).json({ ok: false, message: '参数错误：type 须为 asr、llm 或 hf' });
+  }
+  const result = await aiService.testConnection(type, { baseUrl, model, apiKey });
+  res.json(result);
+});
+
+// ── ASR model cache check & download proxy ────────────────────────────────
+const getAsrBase = () =>
+  (aiConfigService.getConfig().asrBaseUrl || 'http://localhost:8000').replace(/\/+$/, '');
+
+app.get('/api/asr/check', requireAdmin, async (req: Request, res: Response) => {
+  const { model } = req.query as { model?: string };
+  if (!model) return res.status(400).json({ error: 'model required' });
+  try {
+    const r = await fetch(
+      `${getAsrBase()}/v1/check?repo_id=${encodeURIComponent(model)}`,
+      { signal: AbortSignal.timeout(6000) },
+    );
+    const data = await r.json();
+    res.json(data);
+  } catch {
+    res.json({ cached: false });
+  }
+});
+
+app.get('/api/asr/download', requireAdmin, async (req: Request, res: Response) => {
+  const { model } = req.query as { model?: string };
+  if (!model) return res.status(400).json({ error: 'model required' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  try {
+    const upstream = await fetch(
+      `${getAsrBase()}/v1/download?repo_id=${encodeURIComponent(model)}`,
+      { signal: AbortSignal.timeout(600_000) },
+    );
+    if (!upstream.body) {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: 'ASR 服务不可达' })}\n\n`);
+      return res.end();
+    }
+    const reader = (upstream.body as unknown as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(decoder.decode(value, { stream: true }));
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '下载失败';
+    res.write(`data: ${JSON.stringify({ type: 'error', message: msg })}\n\n`);
+  } finally {
+    res.end();
+  }
 });
 
 // ── Auth ───────────────────────────────────────────────────────────────────

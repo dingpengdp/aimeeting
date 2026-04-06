@@ -16,9 +16,10 @@ import AiMinutesPanel from '../components/AiMinutesPanel';
 import RemoteControlPanel from '../components/RemoteControlPanel';
 import SecurityPanel from '../components/SecurityPanel';
 import InvitePanel from '../components/InvitePanel';
+import AiSettingsPanel from '../components/AiSettingsPanel';
 import { v4 as uuidv4 } from 'uuid';
 
-type SidePanel = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | null;
+type SidePanel = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | 'ai-settings' | null;
 
 interface MeetingLocationState {
   displayName?: string;
@@ -28,7 +29,7 @@ interface MeetingLocationState {
 }
 
 export default function Meeting() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isAdmin, isLoading: isAuthLoading } = useAuth();
   const { roomId } = useParams<{ roomId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -400,6 +401,11 @@ export default function Meeting() {
                 onClose={() => setSidePanel(null)}
               />
             )}
+            {sidePanel === 'ai-settings' && isAdmin && (
+              <AiSettingsPanel
+                onClose={() => setSidePanel(null)}
+              />
+            )}
             {sidePanel === 'invite' && (
               <InvitePanel
                 roomId={roomId}
@@ -433,6 +439,8 @@ export default function Meeting() {
         onToggleRemoteControl={() => openPanel('remote')}
         onToggleInvite={() => openPanel('invite')}
         onToggleSecurity={() => openPanel('security')}
+        onToggleAiSettings={() => openPanel('ai-settings')}
+        isAdmin={isAdmin}
         onLeave={handleLeave}
       />
     </div>

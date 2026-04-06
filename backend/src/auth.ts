@@ -10,9 +10,10 @@ export interface PublicUser {
   email: string;
   name: string;
   createdAt: string;
+  isAdmin: boolean;
 }
 
-interface StoredUser extends PublicUser {
+interface StoredUser extends Omit<PublicUser, 'isAdmin'> {
   passwordHash: string;
 }
 
@@ -165,11 +166,13 @@ export class AuthService {
   }
 
   private toPublicUser(user: StoredUser): PublicUser {
+    const adminEmail = (process.env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       createdAt: user.createdAt,
+      isAdmin: adminEmail.length > 0 && user.email === adminEmail,
     };
   }
 
@@ -231,6 +234,19 @@ export function requireAuth(authService: AuthService) {
 
     (req as AuthenticatedRequest).user = user;
     next();
+  };
+}
+
+export function requireAdminAuth(authService: AuthService) {
+  const checkAuth = requireAuth(authService);
+  return (req: Request, res: Response, next: NextFunction) => {
+    checkAuth(req, res, () => {
+      const user = (req as AuthenticatedRequest).user;
+      if (!user.isAdmin) {
+        return res.status(403).json({ error: '仅系统管理员可执行此操作' });
+      }
+      next();
+    });
   };
 }
 

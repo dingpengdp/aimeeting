@@ -11,13 +11,14 @@
 | 📹 视频会议 | WebRTC 全网状 P2P 多人视频 / 音频通话 |
 | 🖥 屏幕共享 | 一键共享桌面，录制时自动切换为全屏布局 |
 | ⏺ 会议录制 | Canvas 合成器（1280×720，30fps）混合所有流，实时流式传输到服务端；自动触发 AI 转录与纪要 |
-| 🤖 AI 转录 | OpenAI Whisper-1 语音识别 |
-| 📝 AI 纪要 | GPT-4o 生成结构化中文会议纪要（含行动项、决议表格）|
+| 🤖 AI 转录 | 支持本地 Qwen3-ASR-1.7B（推荐）或 OpenAI Whisper-1 语音识别，自动切换 |
+| 📝 AI 纪要 | 支持本地/自定义 LLM（Ollama 等）或 OpenAI GPT-4o 生成结构化中文会议纪要（含行动项、决议表格）|
 | 🖱 远程控制 | 实时鼠标指针同步；录制时被控方桌面自动作为主画面 |
 | 💬 即时聊天 | 会议内文字聊天，未读消息角标 |
 | 📅 预约会议 | 支持即时与预约两种模式，预约邀请邮件附 iCal 日历（.ics）|
 | 📧 邮件邀请 | 创建 / 会中均可邀请，自动发送含加入链接的 HTML 邮件 |
 | 🔐 账号体系 | JWT 登录，bcrypt 密码哈希，忘记密码邮件重置 |
+| 👑 管理员角色 | 通过 `ADMIN_EMAIL` 指定系统管理员；可在首页或会议中通过 UI 配置 ASR / LLM 服务，无需重启后端 |
 | 🛡 会议权限 | 口令保护、主持人锁会、踢人、主持权移交 |
 | 🌐 TURN 支持 | 服务端下发 ICE/TURN 配置，支持复杂 NAT 穿透 |
 
@@ -29,7 +30,8 @@
 前端   React 18 + TypeScript + Vite + Tailwind CSS
 后端   Node.js + Express + Socket.IO + TypeScript
 通信   WebRTC（P2P 视频/音频/数据通道）+ Socket.IO（信令/聊天/录制流）
-AI     OpenAI Whisper-1（语音转文字）+ GPT-4o（纪要生成）
+AI     ASR：Qwen3-ASR-1.7B（本地）或 OpenAI Whisper-1（云端）
+       LLM：自定义本地模型（Ollama 等）或 OpenAI GPT-4o（纪要生成）
 邮件   Nodemailer（支持任意 SMTP；预约会议附 iCal 附件）
 ```
 
@@ -46,10 +48,43 @@ cp backend/.env.example backend/.env
 编辑 `backend/.env`，至少填入以下必填项：
 
 ```env
-OPENAI_API_KEY=your-openai-key
 JWT_SECRET=replace-with-a-long-random-secret
 APP_BASE_URL=http://localhost:3000
 ```
+
+**可选：指定系统管理员**
+
+```env
+ADMIN_EMAIL=admin@example.com
+```
+
+> 设置后，该邮箱登录的账号将拥有管理员权限，可在首页"AI 服务配置"入口或会议工具栏通过 UI 配置 ASR / LLM 服务，配置实时生效并持久保存，无需修改环境变量或重启后端。
+
+**如需使用 OpenAI ASR / LLM（未配置本地服务时的默认回退）**
+
+```env
+OPENAI_API_KEY=your-openai-key
+```
+
+**可选：本地 ASR 语音识别（Qwen3-ASR-1.7B）**
+
+```env
+ASR_BASE_URL=http://localhost:8000
+ASR_MODEL=Qwen/Qwen3-ASR-1.7B
+ASR_API_KEY=EMPTY
+```
+
+> 设置后使用本地模型转录，跳过 OpenAI Whisper。启动方式见 `backend/asr_server.py`。
+
+**可选：自定义 LLM 纪要生成（Ollama 等）**
+
+```env
+LLM_BASE_URL=http://localhost:11434
+LLM_MODEL=qwen3
+LLM_API_KEY=EMPTY
+```
+
+> 任何兼容 OpenAI Chat Completions API 的服务均可使用。未配置时回退到 GPT-4o。
 
 **可选：TURN 服务器（生产环境建议配置）**
 
@@ -134,7 +169,7 @@ docker compose --profile turn up --build
 
 1. 点击底部**录制**按钮开始录制——画面由 Canvas 合成器混流（屏幕共享/被控桌面优先全屏，摄像头退为小窗）。
 2. 再次点击停止录制；录制文件自动上传服务端。
-3. 上传完成后自动触发 Whisper 转录，转录完成后自动生成 GPT-4o 会议纪要。
+3. 上传完成后自动触发语音转录（本地 Qwen3-ASR-1.7B 或 Whisper），转录完成后自动调用配置的 LLM（本地或 GPT-4o）生成会议纪要。
 4. 在**AI 纪要**侧边栏查看或复制纪要；录制文件可通过下载接口保存。
 
 ### 屏幕共享
@@ -177,6 +212,9 @@ docker compose --profile turn up --build
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/config/client` | 获取 WebRTC ICE/TURN 服务器配置（需登录）|
+| GET | `/api/config/ai` | 获取当前 AI 服务配置（需登录，API Key 脱敏返回）|
+| PUT | `/api/config/ai` | 更新 AI 服务配置（需管理员）|
+| POST | `/api/config/ai/test` | 测试 ASR / LLM 连接（需管理员）|
 
 ### 会议室
 
@@ -193,8 +231,8 @@ docker compose --profile turn up --build
 |---|---|---|
 | GET  | `/api/recordings/:fileId/download` | 下载录制文件（需登录）|
 | POST | `/api/recordings/upload` | 直接上传录制文件（最大 500 MB）|
-| POST | `/api/recordings/:fileId/transcribe` | 手动触发 Whisper 转录 |
-| POST | `/api/recordings/minutes` | 手动生成 AI 会议纪要 |
+| POST | `/api/recordings/:fileId/transcribe` | 手动触发语音转录（自动选择本地 Qwen3-ASR-1.7B 或 Whisper）|
+| POST | `/api/recordings/minutes` | 手动生成 AI 会议纪要（自动选择本地 LLM 或 GPT-4o）|
 
 ### Socket 事件（客户端 → 服务端）
 
@@ -226,8 +264,8 @@ docker compose --profile turn up --build
 | `room-error` | 错误通知（锁定、口令错误等）|
 | `remote-control-request` / `remote-control-response` / `remote-control-end` | 远程控制信令 |
 | `recording-saved` | 录制文件保存完成 |
-| `recording-transcribed` | Whisper 转录完成 |
-| `recording-minutes` | GPT-4o 纪要生成完成 |
+| `recording-transcribed` | 语音转录完成（Qwen3-ASR-1.7B 或 Whisper） |
+| `recording-minutes` | 纪要生成完成（本地 LLM 或 GPT-4o）|
 | `recording-error` / `recording-minutes-error` | AI 流水线错误 |
 
 ### 数据通道消息类型（P2P）
@@ -356,7 +394,7 @@ docker compose --profile turn up --build
 - 点击"录制"按钮开始录制，再次点击停止；底部显示实时录制时长
 - 录制内容由 Canvas 合成所有参会者画面和音频（1280x720，30fps）
 - 有屏幕共享或远程控制时，被控/共享画面自动作为主画面，本人摄像头缩至右下角
-- 停止后录制数据流式传输到服务端，自动触发 AI 转录
+- 停止后录制数据流式传输到服务端，自动触发语音转录（优先本地 Qwen3-ASR-1.7B，无则 Whisper）
 - 录制文件可通过 `GET /api/recordings/:fileId/download` 下载
 
 ---
@@ -368,11 +406,9 @@ docker compose --profile turn up --build
 **So that** 我可以快速检索和回顾会议内容
 
 **验收标准**
-- 录制停止后，系统自动调用 OpenAI Whisper-1 进行语音转录
-- 录制面板实时显示"转录中"状态
-- 转录完成后在 AI 纪要面板显示全文
-- 也可手动通过 `POST /api/recordings/:fileId/transcribe` 触发转录
-- 未配置 `OPENAI_API_KEY` 时显示明确的错误提示
+- 录制停止后，系统自动调用本地 Qwen3-ASR-1.7B（如已配置）或 OpenAI Whisper-1 进行语音转录
+- 也可手动通过 `POST /api/recordings/:fileId/transcribe` 触发转录，自动选择本地或云端
+- 未配置本地 ASR 且未设置 `OPENAI_API_KEY` 时显示明确的错误提示
 
 ---
 
@@ -383,10 +419,11 @@ docker compose --profile turn up --build
 **So that** 无需手动整理，可直接分发给参会者
 
 **验收标准**
-- 转录完成后自动调用 GPT-4o 生成纪要，AI 纪要面板显示"生成中"状态
+- 转录完成后自动调用配置的 LLM 生成纪要（优先本地模型，如 Ollama + qwen3；未配置则回退到 GPT-4o），AI 纪要面板显示"生成中"状态
 - 纪要包含：会议主题、时间、参会人员、讨论内容、决议或行动项表格、下一步计划
 - 内容以结构化中文 Markdown 呈现
 - 也可手动通过 `POST /api/recordings/minutes` 触发（需提供转录文本，最大 100k 字符）
+- 未配置本地 LLM 且未设置 `OPENAI_API_KEY` 时显示明确的错误提示
 - 生成失败时显示具体错误信息
 
 ---
@@ -458,10 +495,16 @@ docker compose --profile turn up --build
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
-| `OPENAI_API_KEY` | 推荐 | GPT-4o 纪要；未配置本地 ASR 时也用于 Whisper 转录 |
+| `JWT_SECRET` | 是 | JWT 签名密钥（建议 32+ 字符随机串）|
+| `APP_BASE_URL` | 是 | 前端访问地址，用于生成邀请和重置链接 |
+| `ADMIN_EMAIL` | 否 | 系统管理员邮箱；匹配该邮箱的账号登录后可通过 UI 配置 AI 服务，无需改环境变量 |
+| `OPENAI_API_KEY` | 推荐 | 未配置本地 LLM 时用于 GPT-4o 纪要；未配置本地 ASR 时用于 Whisper 转录 |
 | `ASR_BASE_URL` | 否 | 本地 ASR 服务地址（如 `http://localhost:8000`）；设置后使用本地模型转录，跳过 Whisper |
 | `ASR_MODEL` | 否 | 本地 ASR 模型名（默认 `Qwen/Qwen3-ASR-1.7B`）|
 | `ASR_API_KEY` | 否 | 本地 ASR 服务的 API Key（默认 `EMPTY`）|
+| `LLM_BASE_URL` | 否 | 自定义 LLM 服务地址（兼容 OpenAI Chat API，如 Ollama `http://localhost:11434`）；设置后替代 GPT-4o 生成纪要 |
+| `LLM_MODEL` | 否 | 自定义 LLM 模型名（默认 `qwen3`，未配置 `LLM_BASE_URL` 时默认 `gpt-4o`）|
+| `LLM_API_KEY` | 否 | 自定义 LLM 服务的 API Key（默认 `EMPTY`）|
 | `JWT_SECRET` | 是 | JWT 签名密钥（建议 32+ 字符随机串）|
 | `APP_BASE_URL` | 是 | 前端访问地址，用于生成邀请和重置链接 |
 | `PORT` | 否 | 后端端口（默认 3001）|
@@ -477,9 +520,32 @@ docker compose --profile turn up --build
 | `TURN_USERNAME` | 否 | TURN 认证用户名 |
 | `TURN_CREDENTIAL` | 否 | TURN 认证密码 |
 
+---
+
+### US-015 · 系统管理员配置 AI 服务
+
+**As a** 系统管理员  
+**I want to** 在 Web 界面上配置 ASR 语音识别和 LLM 纪要生成服务  
+**So that** 无需修改服务器环境变量或重启后端即可切换 AI 服务
+
+**验收标准**
+- 通过环境变量 `ADMIN_EMAIL` 指定管理员邮箱；匹配该邮箱登录的用户在账号卡片显示「管理员」徽章
+- 管理员在首页账号区看到「AI 服务配置」按钮，点击打开配置弹窗，无需进入会议即可操作
+- 管理员在会议工具栏也有「AI配置」按钮，可随时打开配置面板；非管理员不可见
+- 配置面板分 ASR 和 LLM 两个可折叠区块，每区块可设置服务地址、模型名、API Key
+- 每个区块提供「测试连接」按钮，使用当前填写的值（含未保存的修改）发起连通性检测，显示延迟和结果
+- 保存后配置写入 `backend/data/aiConfig.json` 并立即生效，重启后依然有效
+- API Key 在读取时脱敏返回（显示为 `***set***`），保存时若字段值为 `***set***` 则保留原有密钥
+- 非管理员用户调用配置写入和测试接口返回 403
+
+---
+
 ## 注意事项
 
-- AI 功能需要有效的 `OPENAI_API_KEY`
+- AI 转录：配置 `ASR_BASE_URL` 使用本地 Qwen3-ASR-1.7B，否则需要有效的 `OPENAI_API_KEY`（Whisper）
+- AI 纪要：配置 `LLM_BASE_URL` 使用本地/自定义模型（Ollama 等），否则需要有效的 `OPENAI_API_KEY`（GPT-4o）
+- ASR / LLM 服务也可在运行时通过管理员 Web UI 配置，优先级高于环境变量，配置存储在 `backend/data/aiConfig.json`
+- 系统管理员通过 `ADMIN_EMAIL` 环境变量指定，动态计算，无需迁移数据
 - 所有会议接口和 Socket 连接都要求用户先登录
 - 登录 / 注册和会议入会均有独立限流，防止暴力尝试
 - 用户数据存储在 `backend/data/users.json`，生产环境建议迁移至独立数据库
