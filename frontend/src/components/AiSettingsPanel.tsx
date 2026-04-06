@@ -10,14 +10,6 @@ interface AiSettingsPanelProps {
 
 const MASKED = '***set***';
 
-const ASR_MODELS = [
-  { value: 'mlx-community/whisper-small-mlx',        label: 'whisper-small（已缓存，~500MB，速度快）' },
-  { value: 'mlx-community/whisper-medium-mlx',       label: 'whisper-medium（~1.5GB，均衡）' },
-  { value: 'mlx-community/whisper-large-v3',         label: 'whisper-large-v3（~3GB，最高精度）' },
-  { value: 'mlx-community/whisper-large-v3-turbo',   label: 'whisper-large-v3-turbo（~1.5GB，速度优先）' },
-  { value: 'mlx-community/whisper-large-v3-mlx',     label: 'whisper-large-v3-mlx（~3GB，MLX 优化版）' },
-];
-
 
 
 function SelectField({ label, value, options, hint, onChange }: {
@@ -81,6 +73,14 @@ type DlState = { status: 'idle' | 'checking' | 'cached' | 'needed' | 'downloadin
 
 export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
   const { t } = useTranslation();
+
+  const ASR_MODELS = [
+    { value: 'mlx-community/whisper-small-mlx',        label: t('aiSettings.asr.modelSmall') },
+    { value: 'mlx-community/whisper-medium-mlx',       label: t('aiSettings.asr.modelMedium') },
+    { value: 'mlx-community/whisper-large-v3',         label: t('aiSettings.asr.modelLargeV3') },
+    { value: 'mlx-community/whisper-large-v3-turbo',   label: t('aiSettings.asr.modelLargeV3Turbo') },
+    { value: 'mlx-community/whisper-large-v3-mlx',     label: t('aiSettings.asr.modelLargeV3Mlx') },
+  ];
 
   const ASR_LANGUAGES = [
     { value: '',    label: t('aiSettings.asr.langAuto') },
@@ -250,7 +250,7 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
       <div className="flex-shrink-0 flex border-b border-meeting-border">
         {TABS.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors
+            className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors whitespace-nowrap
               ${activeTab === tab.id
                 ? 'text-meeting-accent border-b-2 border-meeting-accent -mb-px'
                 : 'text-slate-400 hover:text-slate-200'}`}>

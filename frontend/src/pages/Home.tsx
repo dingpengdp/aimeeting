@@ -66,7 +66,7 @@ export default function Home() {
 
     setName((current) => current || user.name);
     setAuthName(user.name);
-    setRoomTitle((current) => current || `${user.name} 的会议`);
+    setRoomTitle((current) => current || t('meeting.defaultTitle', { name: user.name }));
   }, [user]);
 
   useEffect(() => {
@@ -178,7 +178,7 @@ export default function Home() {
           method: 'POST',
           body: JSON.stringify({
             roomId,
-            title: roomTitle.trim() || `${user.name} 的会议`,
+            title: roomTitle.trim() || t('meeting.defaultTitle', { name: user.name }),
             passcode: roomPasscode.trim() || undefined,
             invitedEmails: invitedEmails.length > 0 ? invitedEmails : undefined,
             roomType: meetingType,

@@ -28,6 +28,7 @@
     }
   },
   "meeting": {
+    "defaultTitle": "{{name}} 的會議",
     "title": "會議入口",
     "subtitle": "支援帳號登入、房間密碼和主持人權限控制",
     "needLogin": "需先登入",
@@ -183,8 +184,8 @@
     "title": "AI 服務設定",
     "tabs": {
       "hfToken": "HF Token",
-      "asr": "語音辨識 ASR",
-      "llm": "紀要生成 LLM"
+      "asr": "ASR 語音",
+      "llm": "LLM 紀要"
     },
     "hf": {
       "bannerTitle": "HuggingFace Token",
@@ -204,6 +205,11 @@
       "serviceUrlHint": "填寫後優先使用本地模型，略過 OpenAI",
       "model": "ASR 模型",
       "modelHint": "更換模型需下載；large 系列需先在「HF Token」標籤中設定 Token",
+      "modelSmall": "whisper-small（已快取，~500MB，速度快）",
+      "modelMedium": "whisper-medium（~1.5GB，均衡）",
+      "modelLargeV3": "whisper-large-v3（~3GB，最高精度）",
+      "modelLargeV3Turbo": "whisper-large-v3-turbo（~1.5GB，速度優先）",
+      "modelLargeV3Mlx": "whisper-large-v3-mlx（~3GB，MLX 最佳化版）",
       "modelName": "模型名稱",
       "modelNamePlaceholder": "whisper-1（自動）",
       "language": "辨識語言",

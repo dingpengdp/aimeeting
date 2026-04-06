@@ -28,6 +28,7 @@
     }
   },
   "meeting": {
+    "defaultTitle": "{{name}}'s Meeting",
     "title": "Meeting Room",
     "subtitle": "Supports account login, room passcode, and host access control",
     "needLogin": "Login required",
@@ -183,8 +184,8 @@
     "title": "AI Service Settings",
     "tabs": {
       "hfToken": "HF Token",
-      "asr": "Speech Recognition (ASR)",
-      "llm": "Minutes Generation (LLM)"
+      "asr": "ASR",
+      "llm": "LLM"
     },
     "hf": {
       "bannerTitle": "HuggingFace Token",
@@ -204,6 +205,11 @@
       "serviceUrlHint": "When set, the local model is used instead of OpenAI",
       "model": "ASR Model",
       "modelHint": "Downloading is required when changing models. Large models require an HF Token configured in the HF Token tab.",
+      "modelSmall": "whisper-small (cached, ~500MB, fast)",
+      "modelMedium": "whisper-medium (~1.5GB, balanced)",
+      "modelLargeV3": "whisper-large-v3 (~3GB, highest accuracy)",
+      "modelLargeV3Turbo": "whisper-large-v3-turbo (~1.5GB, speed-focused)",
+      "modelLargeV3Mlx": "whisper-large-v3-mlx (~3GB, MLX optimized)",
       "modelName": "Model Name",
       "modelNamePlaceholder": "whisper-1 (auto)",
       "language": "Recognition Language",
