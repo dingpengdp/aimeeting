@@ -86,7 +86,8 @@ export interface RemoteControlEvent {
 }
 
 export interface RemotePointer {
-  participantId: string;
+  participantId: string; // controller's ID
+  targetId: string;      // screen sharer's ID (whose tile to show the cursor on)
   name: string;
   x: number;
   y: number;
@@ -103,6 +104,8 @@ export interface RemoteControlState {
   isControlling: boolean;
   /** Pending request shown to host */
   pendingRequest: { fromId: string; fromName: string } | null;
+  /** ID of the peer who last rejected a control request */
+  lastRejectedId: string | null;
   pointers: RemotePointer[];
 }
 

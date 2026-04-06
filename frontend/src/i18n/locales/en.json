@@ -136,6 +136,20 @@
       "sendFailed": "Failed to send invitations, please try again"
     }
   },
+  "remoteControlPanel": {
+    "title": "Remote Control",
+    "desc": "Once someone shares their screen, you can request control. After they accept, move your mouse over their video tile — everyone in the meeting will see your cursor.",
+    "beingControlled": "is controlling your screen",
+    "controlling": "You are controlling the screen of",
+    "controlHint": "Move your mouse or click on their video tile. Your cursor is visible to all participants in real time.",
+    "stopControl": "End Control Session",
+    "screenSharingPeers": "Currently Sharing Screen",
+    "requestControl": "Request Control",
+    "requesting": "Waiting for confirmation…",
+    "noSharingPeers": "Nobody is sharing their screen",
+    "noSharingHint": "Once a participant starts screen sharing, you can request control here",
+    "rejected": "Remote control request was rejected"
+  },
   "security": {
     "title": "Meeting Security",
     "statusLocked": "Meeting is locked — new members cannot join",

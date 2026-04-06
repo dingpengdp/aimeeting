@@ -356,6 +356,11 @@ export default function Meeting() {
             peers={peers}
             pointers={rc.rcState.pointers}
             isScreenSharing={isScreenSharing}
+            controllingPeerId={rc.rcState.isControlling ? rc.rcState.controllerId : null}
+            onPointerEvent={(peerId, x, y, clicking) => {
+              if (clicking) rc.sendPointerClick(peerId, x, y);
+              else rc.sendPointerMove(peerId, x, y);
+            }}
           />
         </div>
 
@@ -386,12 +391,9 @@ export default function Meeting() {
               <RemoteControlPanel
                 rcState={rc.rcState}
                 peers={Array.from(peers.values())}
-                localParticipantId={localParticipantId}
-                isScreenSharing={isScreenSharing}
+                screenSharingPeerIds={Array.from(screenSharingPeerIds)}
                 onRequestControl={rc.requestControl}
                 onStopControl={rc.stopControl}
-                onStartScreenShare={startScreenShare}
-                onStopScreenShare={stopScreenShare}
                 onClose={() => setSidePanel(null)}
               />
             )}

@@ -136,6 +136,20 @@
       "sendFailed": "发送邀请失败，请重试"
     }
   },
+  "remoteControlPanel": {
+    "title": "远程控制",
+    "desc": "对方开始屏幕共享后，可向对方申请控制权限。接受后，您可在对方的屏幕中移动鼠标，所有人均可看到这一过程。",
+    "beingControlled": "正在控制您的屏幕",
+    "controlling": "您正在控制屏幕",
+    "controlHint": "请在对方的视频地图上移动鼠标或点击，对方及全体人员均可实时看到您的指针展示。",
+    "stopControl": "结束控制",
+    "screenSharingPeers": "当前屏幕共享中",
+    "requestControl": "申请控制",
+    "requesting": "等待对方确认…",
+    "noSharingPeers": "当前没有参会者在共享屏幕",
+    "noSharingHint": "待对方开始屏幕共享后，可在此申请控制权限",
+    "rejected": "对方拒绝了远程控制申请"
+  },
   "security": {
     "title": "会议权限",
     "statusLocked": "会议已锁定，新成员无法加入",

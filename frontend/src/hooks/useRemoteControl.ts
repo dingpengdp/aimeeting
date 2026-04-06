@@ -19,6 +19,7 @@ export function useRemoteControl({
     isBeingControlled: false,
     isControlling: false,
     pendingRequest: null,
+    lastRejectedId: null,
     pointers: [],
   });
 
@@ -83,9 +84,9 @@ export function useRemoteControl({
   // ── Send pointer position (controller→all via data channel) ──────────────
   const sendPointerMove = useCallback(
     (targetId: string, x: number, y: number) => {
-      sendDataMessage(targetId, {
+      sendDataMessage('all', {
         type: 'remote-pointer',
-        payload: { participantId: localParticipantId, name: localName, x, y, clicking: false },
+        payload: { participantId: localParticipantId, targetId, name: localName, x, y, clicking: false },
       });
     },
     [localParticipantId, localName, sendDataMessage]
@@ -93,9 +94,9 @@ export function useRemoteControl({
 
   const sendPointerClick = useCallback(
     (targetId: string, x: number, y: number) => {
-      sendDataMessage(targetId, {
+      sendDataMessage('all', {
         type: 'remote-click',
-        payload: { participantId: localParticipantId, name: localName, x, y, clicking: true },
+        payload: { participantId: localParticipantId, targetId, name: localName, x, y, clicking: true },
       });
     },
     [localParticipantId, localName, sendDataMessage]
@@ -140,10 +141,9 @@ export function useRemoteControl({
   const handleRemoteControlResponse = useCallback(
     ({ fromId, accepted }: { fromId: string; accepted: boolean }) => {
       if (accepted) {
-        updateRc({ isControlling: true, controllerId: fromId });
+        updateRc({ isControlling: true, controllerId: fromId, lastRejectedId: null });
       } else {
-        updateRc({ isControlling: false });
-        alert('对方拒绝了远程控制请求');
+        updateRc({ isControlling: false, lastRejectedId: fromId });
       }
     },
     [updateRc]

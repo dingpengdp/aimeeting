@@ -13,6 +13,8 @@ interface VideoTileProps {
   isHost?: boolean;
   isScreenSharing?: boolean;
   pointers?: RemotePointer[];
+  isBeingControlled?: boolean;
+  onPointerEvent?: (x: number, y: number, clicking: boolean) => void;
 }
 
 export default function VideoTile({
@@ -26,9 +28,27 @@ export default function VideoTile({
   isHost = false,
   isScreenSharing = false,
   pointers = [],
+  isBeingControlled = false,
+  onPointerEvent,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isBeingControlled || !onPointerEvent || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    onPointerEvent(x, y, false);
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isBeingControlled || !onPointerEvent || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    onPointerEvent(x, y, true);
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -50,7 +70,9 @@ export default function VideoTile({
   return (
     <div
       ref={containerRef}
-      className="relative bg-meeting-surface rounded-xl overflow-hidden flex items-center justify-center"
+      onMouseMove={handleMouseMove}
+      onClick={handleClick}
+      className={`relative bg-meeting-surface rounded-xl overflow-hidden flex items-center justify-center${isBeingControlled ? ' cursor-crosshair ring-2 ring-meeting-accent' : ''}`}
     >
       {/* Video element — always in DOM so srcObject binding survives toggle */}
       <video

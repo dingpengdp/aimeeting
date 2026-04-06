@@ -10,6 +10,8 @@ interface VideoGridProps {
   peers: Map<string, PeerData>;
   pointers: RemotePointer[];
   isScreenSharing: boolean;
+  controllingPeerId?: string | null;
+  onPointerEvent?: (peerId: string, x: number, y: number, clicking: boolean) => void;
 }
 
 export default function VideoGrid({
@@ -21,6 +23,8 @@ export default function VideoGrid({
   peers,
   pointers,
   isScreenSharing,
+  controllingPeerId = null,
+  onPointerEvent,
 }: VideoGridProps) {
   const peerList = Array.from(peers.values());
   const total = 1 + peerList.length;
@@ -45,7 +49,11 @@ export default function VideoGrid({
         isMirror
         isLocal
         isScreenSharing={isScreenSharing}
-        pointers={pointers.filter((p) => p.participantId !== localParticipantId)}
+        pointers={pointers.filter((p) => p.targetId === localParticipantId)}
+        isBeingControlled={controllingPeerId === localParticipantId}
+        onPointerEvent={controllingPeerId === localParticipantId && onPointerEvent
+          ? (x, y, clicking) => onPointerEvent(localParticipantId, x, y, clicking)
+          : undefined}
       />
 
       {/* Remote peers */}
@@ -59,7 +67,11 @@ export default function VideoGrid({
           isVideoEnabled={peer.isVideoEnabled}
           isMirror={false}
           isHost={peer.isHost}
-          pointers={pointers.filter((p) => p.participantId === peer.participantId)}
+          pointers={pointers.filter((p) => p.targetId === peer.participantId)}
+          isBeingControlled={controllingPeerId === peer.participantId}
+          onPointerEvent={controllingPeerId === peer.participantId && onPointerEvent
+            ? (x, y, clicking) => onPointerEvent(peer.participantId, x, y, clicking)
+            : undefined}
         />
       ))}
     </div>

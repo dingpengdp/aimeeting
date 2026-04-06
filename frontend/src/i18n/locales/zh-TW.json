@@ -136,6 +136,20 @@
       "sendFailed": "發送邀請失敗，請重試"
     }
   },
+  "remoteControlPanel": {
+    "title": "遠端控制",
+    "desc": "對方開始螢幕分享後，可向對方申請控制權限。接受後，您可在對方螢幕中移动滑鼠，所有人均可看到此過程。",
+    "beingControlled": "正在控制您的螢幕",
+    "controlling": "您正在控制螢幕",
+    "controlHint": "請在對方的影片圖格上移动滑鼠或點擊，對方及全體人員均可即時看到您的指標顯示。",
+    "stopControl": "結束控制",
+    "screenSharingPeers": "目前螢幕分享中",
+    "requestControl": "申請控制",
+    "requesting": "等待對方確認…",
+    "noSharingPeers": "目前沒有參會者在分享螢幕",
+    "noSharingHint": "待對方開始螢幕分享後，可在此申請控制權限",
+    "rejected": "對方拒絕了遠端控制申請"
+  },
   "security": {
     "title": "會議權限",
     "statusLocked": "會議已鎖定，新成員無法加入",
