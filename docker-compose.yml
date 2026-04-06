@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=3001
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/data:/app/data
+    restart: unless-stopped
+
+  turn:
+    image: coturn/coturn:latest
+    profiles:
+      - turn
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200/udp"
+    command:
+      - sh
+      - -c
+      - >
+        exec turnserver -n --log-file=stdout
+        --realm="$${TURN_REALM:-aimeeting.local}"
+        --user="$${TURN_USERNAME}:$${TURN_CREDENTIAL}"
+        --lt-cred-mech
+        --fingerprint
+        --listening-port=3478
+        --min-port=49160
+        --max-port=49200
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
