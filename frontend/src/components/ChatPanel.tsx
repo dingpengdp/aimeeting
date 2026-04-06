@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { MessageSquare, Send, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '../types';
 
 interface ChatPanelProps {
@@ -12,6 +13,7 @@ interface ChatPanelProps {
 export default function ChatPanel({ messages, localParticipantId, onSend, onClose }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,7 +34,7 @@ export default function ChatPanel({ messages, localParticipantId, onSend, onClos
   };
 
   const formatTime = (ts: number) => {
-    return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -41,7 +43,7 @@ export default function ChatPanel({ messages, localParticipantId, onSend, onClos
       <div className="flex items-center justify-between px-4 py-3 border-b border-meeting-border">
         <div className="flex items-center gap-2 text-white font-medium">
           <MessageSquare className="w-4 h-4 text-meeting-accent" />
-          聊天
+          {t('chat.title')}
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
           <X className="w-5 h-5" />
@@ -53,7 +55,7 @@ export default function ChatPanel({ messages, localParticipantId, onSend, onClos
         {messages.length === 0 && (
           <div className="text-center text-slate-500 text-sm mt-8">
             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            暂无消息，说点什么吧
+            {t('chat.empty')}
           </div>
         )}
         {messages.map((msg) => {
@@ -86,7 +88,7 @@ export default function ChatPanel({ messages, localParticipantId, onSend, onClos
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入消息… (Enter 发送)"
+            placeholder={t('chat.placeholder')}
             rows={2}
             maxLength={2000}
             className="flex-1 bg-meeting-bg border border-meeting-border rounded-xl px-3 py-2 text-sm text-white

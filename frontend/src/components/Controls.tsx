@@ -2,6 +2,7 @@ import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
   MessageSquare, Circle, Sparkles, MousePointer2, PhoneOff, Shield, UserPlus, SlidersHorizontal,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type PanelKey = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | 'ai-settings' | null;
 
@@ -83,28 +84,29 @@ export default function Controls({
   isAdmin = false,
   onLeave,
 }: ControlsProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex-shrink-0 bg-meeting-surface border-t border-meeting-border px-4 py-3">
       <div className="flex items-center justify-center gap-2 flex-wrap">
         {/* Audio */}
-        <ControlBtn onClick={onToggleAudio} active={!isAudioEnabled} label={isAudioEnabled ? '静音' : '取消静音'}>
+        <ControlBtn onClick={onToggleAudio} active={!isAudioEnabled} label={isAudioEnabled ? t('controls.mute') : t('controls.unmute')}>
           {isAudioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
         </ControlBtn>
 
         {/* Video */}
-        <ControlBtn onClick={onToggleVideo} active={!isVideoEnabled} label={isVideoEnabled ? '关闭摄像头' : '开启摄像头'}>
+        <ControlBtn onClick={onToggleVideo} active={!isVideoEnabled} label={isVideoEnabled ? t('controls.cameraOff') : t('controls.cameraOn')}>
           {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
         </ControlBtn>
 
         {/* Screen share */}
-        <ControlBtn onClick={onToggleScreenShare} active={isScreenSharing} label={isScreenSharing ? '停止共享' : '共享屏幕'}>
+        <ControlBtn onClick={onToggleScreenShare} active={isScreenSharing} label={isScreenSharing ? t('controls.stopShare') : t('controls.screenShare')}>
           {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
         </ControlBtn>
 
         <div className="w-px h-8 bg-meeting-border mx-1" />
 
         {/* Chat */}
-        <ControlBtn onClick={onToggleChat} active={activePanelKey === 'chat'} label="聊天" badge={unreadChat}>
+        <ControlBtn onClick={onToggleChat} active={activePanelKey === 'chat'} label={t('controls.chat')} badge={unreadChat}>
           <MessageSquare className="w-5 h-5" />
         </ControlBtn>
 
@@ -113,31 +115,31 @@ export default function Controls({
           onClick={onToggleRecording}
           active={activePanelKey === 'recording'}
           recording={isRecording}
-          label={isRecording ? '录制中' : '录制'}
+          label={isRecording ? t('controls.recordingActive') : t('controls.recording')}
         >
           <Circle className={`w-5 h-5 ${isRecording ? 'fill-current' : ''}`} />
         </ControlBtn>
 
         {/* AI Minutes */}
-        <ControlBtn onClick={onToggleMinutes} active={activePanelKey === 'minutes'} label="AI纪要">
+        <ControlBtn onClick={onToggleMinutes} active={activePanelKey === 'minutes'} label={t('controls.aiMinutes')}>
           <Sparkles className="w-5 h-5" />
         </ControlBtn>
 
         {/* Remote control */}
-        <ControlBtn onClick={onToggleRemoteControl} active={activePanelKey === 'remote'} label="远程控制">
+        <ControlBtn onClick={onToggleRemoteControl} active={activePanelKey === 'remote'} label={t('controls.remoteControl')}>
           <MousePointer2 className="w-5 h-5" />
         </ControlBtn>
 
-        <ControlBtn onClick={onToggleInvite} active={activePanelKey === 'invite'} label="邀请">
+        <ControlBtn onClick={onToggleInvite} active={activePanelKey === 'invite'} label={t('controls.invite')}>
           <UserPlus className="w-5 h-5" />
         </ControlBtn>
 
-        <ControlBtn onClick={onToggleSecurity} active={activePanelKey === 'security'} label="权限">
+        <ControlBtn onClick={onToggleSecurity} active={activePanelKey === 'security'} label={t('controls.security')}>
           <Shield className="w-5 h-5" />
         </ControlBtn>
 
         {isAdmin && (
-          <ControlBtn onClick={onToggleAiSettings} active={activePanelKey === 'ai-settings'} label="AI配置">
+          <ControlBtn onClick={onToggleAiSettings} active={activePanelKey === 'ai-settings'} label={t('controls.aiConfig')}>
             <SlidersHorizontal className="w-5 h-5" />
           </ControlBtn>
         )}
@@ -145,7 +147,7 @@ export default function Controls({
         <div className="w-px h-8 bg-meeting-border mx-1" />
 
         {/* Leave */}
-        <ControlBtn onClick={onLeave} danger label="离开">
+        <ControlBtn onClick={onLeave} danger label={t('controls.leave')}>
           <PhoneOff className="w-5 h-5" />
         </ControlBtn>
       </div>

@@ -1,4 +1,5 @@
 import { Circle, Download, Loader2, X, Video, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { useRecording } from '../hooks/useRecording';
 
 type RecordingHook = ReturnType<typeof useRecording>;
@@ -22,6 +23,7 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
     downloadRecording,
     formatDuration,
   } = recording;
+  const { t } = useTranslation();
 
   const isProcessing = isTranscribing || isGeneratingMinutes;
   const isDone = !isRecording && !isProcessing && serverFileId !== null;
@@ -32,7 +34,7 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
       <div className="flex items-center justify-between px-4 py-3 border-b border-meeting-border flex-shrink-0">
         <div className="flex items-center gap-2 text-white font-medium">
           <Circle className="w-4 h-4 text-meeting-danger" />
-          会议录制
+          {t('recording.title')}
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
           <X className="w-5 h-5" />
@@ -48,8 +50,9 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
               <Video className="w-8 h-8 text-slate-400" />
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
-              录制画面与音频（含屏幕共享）。<br />
-              结束后服务端自动转录并生成 AI 会议纪要。
+              {t('recording.idleDesc').split('\n').map((line, i) => (
+                <span key={i}>{line}{i === 0 && <br />}</span>
+              ))}
             </p>
           </div>
         )}
@@ -59,7 +62,7 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
           <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
             <Circle className="w-4 h-4 text-red-400 fill-current animate-pulse flex-shrink-0" />
             <div>
-              <p className="text-white text-sm font-medium">录制中 · 实时上传至服务端</p>
+              <p className="text-white text-sm font-medium">{t('recording.activeStatus')}</p>
               <p className="text-red-400 text-xl font-mono">{formatDuration(duration)}</p>
             </div>
           </div>
@@ -75,9 +78,9 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0 text-meeting-accent" />
             <div>
               <p className="text-white text-sm font-medium">
-                {isTranscribing ? 'AI 正在转录录音…' : 'AI 正在生成会议纪要…'}
+                {isTranscribing ? t('recording.transcribing') : t('recording.generatingMinutes')}
               </p>
-              <p className="text-slate-400 text-xs mt-0.5">时长：{formatDuration(duration)}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{t('recording.duration', { time: formatDuration(duration) })}</p>
             </div>
           </div>
         )}
@@ -87,9 +90,9 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
           <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-              <p className="text-green-400 text-sm font-medium">录制与处理完成</p>
+              <p className="text-green-400 text-sm font-medium">{t('recording.done')}</p>
             </div>
-            <p className="text-slate-400 text-xs mt-1">时长：{formatDuration(duration)}</p>
+            <p className="text-slate-400 text-xs mt-1">{t('recording.duration', { time: formatDuration(duration) })}</p>
           </div>
         )}
 
@@ -102,7 +105,7 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
                        py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
             <Circle className="w-4 h-4" />
-            开始录制
+            {t('recording.startBtn')}
           </button>
         ) : (
           <button
@@ -111,7 +114,7 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
                        py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
             <Circle className="w-4 h-4 fill-current text-meeting-danger" />
-            停止录制
+            {t('recording.stopBtn')}
           </button>
         )}
 
@@ -124,20 +127,20 @@ export default function RecordingPanel({ recording, onClose }: RecordingPanelPro
                        hover:bg-meeting-border disabled:opacity-50 text-slate-300 hover:text-white py-2.5 rounded-xl text-sm transition-colors"
           >
             <Download className="w-4 h-4" />
-            下载录制文件
+            {t('recording.downloadBtn')}
           </button>
         )}
 
         {/* Transcription preview */}
         {transcription && (
           <div className="space-y-2">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">转录结果预览</p>
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{t('recording.transcriptionPreview')}</p>
             <div className="bg-meeting-bg border border-meeting-border rounded-xl p-3 max-h-40 overflow-y-auto">
               <p className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
                 {transcription}
               </p>
             </div>
-            <p className="text-slate-500 text-xs">完整纪要请查看"AI纪要"面板</p>
+            <p className="text-slate-500 text-xs">{t('recording.transcriptionNote')}</p>
           </div>
         )}
 

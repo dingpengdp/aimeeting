@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, ShieldAlert } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getSocket, disconnectSocket } from '../services/socket';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useRecording } from '../hooks/useRecording';
@@ -17,6 +18,7 @@ import RemoteControlPanel from '../components/RemoteControlPanel';
 import SecurityPanel from '../components/SecurityPanel';
 import InvitePanel from '../components/InvitePanel';
 import AiSettingsPanel from '../components/AiSettingsPanel';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import { v4 as uuidv4 } from 'uuid';
 
 type SidePanel = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | 'ai-settings' | null;
@@ -33,6 +35,7 @@ export default function Meeting() {
   const { roomId } = useParams<{ roomId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const meetingState = ((location.state as MeetingLocationState | null) ?? {});
   const displayName = meetingState.displayName || user?.name || 'Guest';
@@ -59,7 +62,7 @@ export default function Meeting() {
     }
 
     if (!roomId) {
-      setPageError('会议室不存在');
+      setPageError(t('meeting.errors.roomNotExist'));
       setPageLoading(false);
       return;
     }
@@ -94,7 +97,7 @@ export default function Meeting() {
           return;
         }
 
-        setPageError(accessError instanceof Error ? accessError.message : '进入会议失败');
+        setPageError(accessError instanceof Error ? accessError.message : t('meetingPage.errors.accessFailed'));
         setPageLoading(false);
       });
 
@@ -181,7 +184,7 @@ export default function Meeting() {
       setRoomLocked(isLocked);
     });
     socket.on('participant-kicked', () => {
-      window.alert('您已被主持人移出会议');
+      window.alert(t('meetingPage.kickedMessage'));
       leave();
       disconnectSocket();
       navigate('/', { replace: true });
@@ -240,7 +243,7 @@ export default function Meeting() {
   };
 
   const inviteParticipants = async (emails: string[]): Promise<RoomInviteResponse> => {
-    if (!roomId) throw new Error('会议室不存在');
+    if (!roomId) throw new Error(t('meeting.errors.roomNotExist'));
     const result = await apiFetch<RoomInviteResponse>(`/api/rooms/${encodeURIComponent(roomId)}/invite`, {
       method: 'POST',
       body: JSON.stringify({ emails }),
@@ -266,8 +269,8 @@ export default function Meeting() {
       <div className="min-h-screen bg-meeting-bg flex items-center justify-center p-6">
         <div className="bg-meeting-surface border border-meeting-border rounded-2xl px-8 py-10 text-center shadow-2xl">
           <Loader2 className="w-8 h-8 text-meeting-accent animate-spin mx-auto mb-4" />
-          <p className="text-white font-medium">正在校验会议权限并初始化 TURN 配置</p>
-          <p className="text-slate-400 text-sm mt-2">请稍候…</p>
+          <p className="text-white font-medium">{t('meetingPage.loading')}</p>
+          <p className="text-slate-400 text-sm mt-2">{t('meetingPage.loadingSubtitle')}</p>
         </div>
       </div>
     );
@@ -278,13 +281,13 @@ export default function Meeting() {
       <div className="min-h-screen bg-meeting-bg flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-meeting-surface border border-meeting-border rounded-2xl p-8 text-center shadow-2xl">
           <ShieldAlert className="w-10 h-10 text-meeting-danger mx-auto mb-4" />
-          <h1 className="text-white text-xl font-semibold mb-2">无法进入会议</h1>
-          <p className="text-slate-400 text-sm leading-relaxed">{pageError || '会议室不存在或您暂无访问权限。'}</p>
+          <h1 className="text-white text-xl font-semibold mb-2">{t('meetingPage.errorTitle')}</h1>
+          <p className="text-slate-400 text-sm leading-relaxed">{pageError || t('meetingPage.errorDefault')}</p>
           <button
             onClick={() => navigate('/')}
             className="mt-6 w-full bg-meeting-accent hover:bg-blue-600 text-white font-medium py-3 rounded-xl transition-colors"
           >
-            返回首页
+            {t('meetingPage.backHome')}
           </button>
         </div>
       </div>
@@ -302,36 +305,39 @@ export default function Meeting() {
           <span className="text-slate-500 text-sm font-mono">{roomId}</span>
           {isHost && (
             <span className="bg-meeting-accent/20 text-meeting-accent text-xs px-2 py-0.5 rounded-full border border-meeting-accent/30">
-              主持人
+              {t('meetingPage.host')}
             </span>
           )}
           {roomLocked && (
             <span className="bg-red-500/10 text-red-300 text-xs px-2 py-0.5 rounded-full border border-red-500/30">
-              已锁定
+              {t('meetingPage.locked')}
             </span>
           )}
         </div>
-        <div className="text-slate-400 text-sm">{displayName}</div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <span className="text-slate-400 text-sm">{displayName}</span>
+        </div>
       </div>
 
       {/* Pending remote control request */}
       {rc.rcState.pendingRequest && (
         <div className="flex-shrink-0 bg-yellow-500/10 border-b border-yellow-500/30 px-4 py-3 flex items-center justify-between">
           <span className="text-yellow-300 text-sm">
-            <strong>{rc.rcState.pendingRequest.fromName}</strong> 请求远程控制您的屏幕
+            <strong>{rc.rcState.pendingRequest.fromName}</strong> {t('meetingPage.remoteControlRequestSuffix')}
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => rc.respondToRequest(rc.rcState.pendingRequest!.fromId, true)}
               className="bg-meeting-success text-white text-sm px-3 py-1 rounded-lg hover:bg-green-600 transition-colors"
             >
-              接受
+              {t('meetingPage.accept')}
             </button>
             <button
               onClick={() => rc.respondToRequest(rc.rcState.pendingRequest!.fromId, false)}
               className="bg-meeting-danger text-white text-sm px-3 py-1 rounded-lg hover:bg-red-600 transition-colors"
             >
-              拒绝
+              {t('meetingPage.reject')}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Copy, Check, Send, Loader2, Mail, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { RoomInviteResponse } from '../types';
 
 interface InvitePanelProps {
@@ -39,6 +40,7 @@ export default function InvitePanel({
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [sentCount, setSentCount] = useState<number | null>(null);
+  const { t, i18n } = useTranslation();
 
   const handleCopyLink = async () => {
     try {
@@ -64,13 +66,13 @@ export default function InvitePanel({
 
     const emails = parseEmails(emailsInput);
     if (emails.length === 0) {
-      setSendError('请输入至少一个邮箱地址');
+      setSendError(t('invite.errors.emailRequired'));
       return;
     }
 
     const invalid = emails.filter((e) => !isValidEmail(e));
     if (invalid.length > 0) {
-      setSendError(`以下邮箱格式有误：${invalid.join(', ')}`);
+      setSendError(t('invite.errors.invalidEmails', { emails: invalid.join(', ') }));
       return;
     }
 
@@ -81,7 +83,7 @@ export default function InvitePanel({
       setSentCount(delivered);
       setEmailsInput('');
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : '发送邀请失败，请重试');
+      setSendError(err instanceof Error ? err.message : t('invite.errors.sendFailed'));
     } finally {
       setIsSending(false);
     }
@@ -91,11 +93,11 @@ export default function InvitePanel({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-meeting-border flex-shrink-0">
-        <h3 className="text-white font-semibold">邀请参与者</h3>
+        <h3 className="text-white font-semibold">{t('invite.title')}</h3>
         <button
           onClick={onClose}
           className="text-slate-400 hover:text-white transition-colors p-1 rounded"
-          aria-label="关闭"
+          aria-label={t('invite.close')}
         >
           <X className="w-5 h-5" />
         </button>
@@ -104,13 +106,13 @@ export default function InvitePanel({
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
         {/* Room info */}
         <div className="bg-meeting-bg border border-meeting-border rounded-xl p-3">
-          <p className="text-xs text-slate-500 mb-1">会议室</p>
+          <p className="text-xs text-slate-500 mb-1">{t('invite.roomLabel')}</p>
           <p className="text-white font-medium text-sm">{roomTitle}</p>
           <p className="text-slate-400 text-xs font-mono mt-0.5">{roomId}</p>
           {scheduledAt && (
             <p className="flex items-center gap-1.5 text-slate-400 text-xs mt-1.5">
               <Calendar className="w-3.5 h-3.5 text-meeting-accent flex-shrink-0" />
-              {new Date(scheduledAt).toLocaleString('zh-CN', {
+              {new Date(scheduledAt).toLocaleString(i18n.language === 'en' ? 'en-US' : i18n.language, {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -123,7 +125,7 @@ export default function InvitePanel({
 
         {/* Invite link */}
         <div>
-          <label className="block text-sm text-slate-400 mb-2">邀请链接</label>
+          <label className="block text-sm text-slate-400 mb-2">{t('invite.inviteLink')}</label>
           <div className="flex gap-2">
             <input
               readOnly
@@ -133,12 +135,12 @@ export default function InvitePanel({
             />
             <button
               onClick={handleCopyLink}
-              title="复制链接"
+              title={t('invite.copyLink')}
               className="flex-shrink-0 bg-meeting-accent/20 hover:bg-meeting-accent/40 text-meeting-accent border border-meeting-accent/40
                          px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
             >
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? '已复制' : '复制'}
+              {copied ? t('invite.copied') : t('invite.copyLink')}
             </button>
           </div>
         </div>
@@ -148,12 +150,12 @@ export default function InvitePanel({
           <div>
             <label className="block text-sm text-slate-400 mb-2 flex items-center gap-1.5">
               <Mail className="w-4 h-4" />
-              邮件邀请
+              {t('invite.emailInvite')}
             </label>
             <textarea
               value={emailsInput}
               onChange={(e) => setEmailsInput(e.target.value)}
-              placeholder={'输入邮箱，多个用逗号、分号或换行分隔\n例如：alice@example.com, bob@example.com'}
+              placeholder={t('invite.emailPlaceholder')}
               rows={4}
               className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-3 py-2 text-white placeholder-slate-500 text-sm
                          focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors resize-none"
@@ -167,7 +169,7 @@ export default function InvitePanel({
 
             {sentCount !== null && (
               <p className="mt-1.5 text-green-400 text-xs px-3 py-2 bg-green-500/10 rounded-lg border border-green-500/20">
-                成功发送邀请邮件 {sentCount} 封
+                {t('invite.sentSuccess', { count: sentCount })}
               </p>
             )}
 
@@ -178,7 +180,7 @@ export default function InvitePanel({
                          py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isSending ? '发送中…' : '发送邀请'}
+              {isSending ? t('invite.sending') : t('invite.sendBtn')}
             </button>
           </div>
         )}
@@ -186,7 +188,7 @@ export default function InvitePanel({
         {/* Already-invited list */}
         {invitedEmails.length > 0 && (
           <div>
-            <p className="text-sm text-slate-400 mb-2">已邀请（{invitedEmails.length}）</p>
+            <p className="text-sm text-slate-400 mb-2">{t('invite.invitedList', { count: invitedEmails.length })}</p>
             <ul className="space-y-1.5">
               {invitedEmails.map((em) => (
                 <li

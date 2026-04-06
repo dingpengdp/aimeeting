@@ -21,6 +21,8 @@ export interface AiServiceConfig {
   asrBaseUrl: string;
   asrModel: string;
   asrApiKey: string;
+  /** ISO 639-1 language code, e.g. 'zh', 'en', 'yue'. Empty = auto-detect. */
+  asrLanguage: string;
   llmBaseUrl: string;
   llmModel: string;
   llmApiKey: string;
@@ -33,6 +35,7 @@ export interface AiServiceConfigPublic {
   asrModel: string;
   /** `'***set***'` when a key has been configured; `''` otherwise. */
   asrApiKey: string;
+  asrLanguage: string;
   llmBaseUrl: string;
   llmModel: string;
   llmApiKey: string;
@@ -47,6 +50,7 @@ function envDefaults(): AiServiceConfig {
     asrBaseUrl: process.env.ASR_BASE_URL ?? '',
     asrModel: process.env.ASR_MODEL ?? 'mlx-community/whisper-small-mlx',
     asrApiKey: process.env.ASR_API_KEY ?? '',
+    asrLanguage: process.env.ASR_LANGUAGE ?? '',
     llmBaseUrl: process.env.LLM_BASE_URL ?? '',
     llmModel: process.env.LLM_MODEL ?? '',
     llmApiKey: process.env.LLM_API_KEY ?? '',
@@ -71,6 +75,7 @@ class AiConfigService {
           asrBaseUrl: stored.asrBaseUrl ?? defaults.asrBaseUrl,
           asrModel: stored.asrModel ?? defaults.asrModel,
           asrApiKey: stored.asrApiKey ?? defaults.asrApiKey,
+          asrLanguage: stored.asrLanguage ?? defaults.asrLanguage,
           llmBaseUrl: stored.llmBaseUrl ?? defaults.llmBaseUrl,
           llmModel: stored.llmModel ?? defaults.llmModel,
           llmApiKey: stored.llmApiKey ?? defaults.llmApiKey,
@@ -95,6 +100,7 @@ class AiConfigService {
       asrBaseUrl: patch.asrBaseUrl ?? current.asrBaseUrl,
       asrModel: patch.asrModel ?? current.asrModel,
       asrApiKey: patch.asrApiKey === MASKED ? current.asrApiKey : (patch.asrApiKey ?? current.asrApiKey),
+      asrLanguage: patch.asrLanguage ?? current.asrLanguage,
       llmBaseUrl: patch.llmBaseUrl ?? current.llmBaseUrl,
       llmModel: patch.llmModel ?? current.llmModel,
       llmApiKey: patch.llmApiKey === MASKED ? current.llmApiKey : (patch.llmApiKey ?? current.llmApiKey),
@@ -116,6 +122,7 @@ class AiConfigService {
       asrBaseUrl: cfg.asrBaseUrl,
       asrModel: cfg.asrModel,
       asrApiKey: cfg.asrApiKey ? MASKED : '',
+      asrLanguage: cfg.asrLanguage,
       llmBaseUrl: cfg.llmBaseUrl,
       llmModel: cfg.llmModel,
       llmApiKey: cfg.llmApiKey ? MASKED : '',

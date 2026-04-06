@@ -1,5 +1,6 @@
 import { Sparkles, Loader2, X, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import type { useRecording } from '../hooks/useRecording';
 
@@ -13,6 +14,7 @@ interface AiMinutesPanelProps {
 export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelProps) {
   const { transcription, minutes, isGeneratingMinutes, error, generateMinutes } = recording;
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
 
   const handleCopy = async () => {
     if (!minutes) return;
@@ -27,7 +29,7 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
       <div className="flex items-center justify-between px-4 py-3 border-b border-meeting-border">
         <div className="flex items-center gap-2 text-white font-medium">
           <Sparkles className="w-4 h-4 text-meeting-accent" />
-          AI 会议纪要
+          {t('aiMinutes.title')}
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
           <X className="w-5 h-5" />
@@ -42,7 +44,7 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
               <Sparkles className="w-8 h-8 text-slate-400" />
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
-              开始会议录制后，服务端将自动转录并生成 AI 会议纪要，完成后结果会显示在这里。
+              {t('aiMinutes.empty')}
             </p>
           </div>
         )}
@@ -51,11 +53,11 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
         {transcription && !minutes && (
           <div className="space-y-4">
             <div className="bg-meeting-accent/10 border border-meeting-accent/30 rounded-xl p-3">
-              <p className="text-meeting-accent text-sm font-medium">✓ 转录完成，可以生成纪要</p>
+              <p className="text-meeting-accent text-sm font-medium">{t('aiMinutes.transcriptionDone')}</p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">转录文本预览</p>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{t('aiMinutes.transcriptionPreview')}</p>
               <div className="bg-meeting-bg border border-meeting-border rounded-xl p-3 max-h-32 overflow-y-auto">
                 <p className="text-slate-400 text-xs leading-relaxed line-clamp-5">{transcription}</p>
               </div>
@@ -70,12 +72,12 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
               {isGeneratingMinutes ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  AI 正在生成纪要…
+                  {t('aiMinutes.generating')}
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  生成 AI 会议纪要
+                  {t('aiMinutes.generateBtn')}
                 </>
               )}
             </button>
@@ -86,7 +88,7 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
         {minutes && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">AI 生成纪要</p>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{t('aiMinutes.minutesLabel')}</p>
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors"
@@ -94,12 +96,12 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
                 {copied ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-meeting-success" />
-                    已复制
+                    {t('aiMinutes.copied')}
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    复制全文
+                    {t('aiMinutes.copy')}
                   </>
                 )}
               </button>
@@ -139,7 +141,7 @@ export default function AiMinutesPanel({ recording, onClose }: AiMinutesPanelPro
                          py-2 rounded-xl transition-colors"
             >
               {isGeneratingMinutes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              重新生成
+              {t('aiMinutes.regenerate')}
             </button>
           </div>
         )}

@@ -15,10 +15,12 @@ import {
   Calendar,
   SlidersHorizontal,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import type { RoomSummary } from '../types';
 import AiSettingsPanel from '../components/AiSettingsPanel';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -28,6 +30,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, login, register, logout, isAdmin, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   const [showAiSettings, setShowAiSettings] = useState(false);
 
@@ -94,27 +97,27 @@ export default function Home() {
 
     if (authMode === 'register') {
       if (normalizedName.length < 2 || normalizedName.length > 50) {
-        setAuthError('姓名长度需在 2 到 50 个字符之间');
+        setAuthError(t('auth.errors.nameLength'));
         return;
       }
 
       if (!isValidEmail(normalizedEmail)) {
-        setAuthError('请输入有效的邮箱地址');
+        setAuthError(t('auth.errors.invalidEmail'));
         return;
       }
 
       if (password.length < 8 || password.length > 128) {
-        setAuthError('密码长度需在 8 到 128 个字符之间');
+        setAuthError(t('auth.errors.passwordLength'));
         return;
       }
     } else {
       if (!normalizedEmail) {
-        setAuthError('请输入邮箱地址');
+        setAuthError(t('auth.errors.emailRequired'));
         return;
       }
 
       if (!password) {
-        setAuthError('请输入密码');
+        setAuthError(t('auth.errors.passwordRequired'));
         return;
       }
     }
@@ -130,7 +133,7 @@ export default function Home() {
 
       setPassword('');
     } catch (authActionError) {
-      setAuthError(authActionError instanceof Error ? authActionError.message : '登录失败');
+      setAuthError(authActionError instanceof Error ? authActionError.message : t('auth.errors.loginFailed'));
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -142,13 +145,13 @@ export default function Home() {
     setIsMeetingSubmitting(true);
 
     if (!user) {
-      setError('请先登录账号，再创建或加入会议');
+      setError(t('meeting.errors.loginRequired'));
       setIsMeetingSubmitting(false);
       return;
     }
 
     if (!name.trim()) {
-      setError('请输入您的姓名');
+      setError(t('meeting.errors.nameRequired'));
       setIsMeetingSubmitting(false);
       return;
     }
@@ -161,12 +164,12 @@ export default function Home() {
         const invitedEmails = parseInviteEmails(inviteEmailsInput);
         if (meetingType === 'scheduled') {
           if (!scheduledAt) {
-            setError('请选择预约会议的时间');
+            setError(t('meeting.errors.scheduleRequired'));
             setIsMeetingSubmitting(false);
             return;
           }
           if (new Date(scheduledAt) <= new Date()) {
-            setError('预约时间必须在当前时间之后');
+            setError(t('meeting.errors.schedulePast'));
             setIsMeetingSubmitting(false);
             return;
           }
@@ -194,13 +197,13 @@ export default function Home() {
         });
         return;
       } catch (meetingError) {
-        setError(meetingError instanceof Error ? meetingError.message : '创建会议室失败，请重试');
+        setError(meetingError instanceof Error ? meetingError.message : t('meeting.errors.createFailed'));
         setIsMeetingSubmitting(false);
         return;
       }
     } else {
       if (!roomInput.trim()) {
-        setError('请输入会议室 ID');
+        setError(t('meeting.errors.roomIdRequired'));
         setIsMeetingSubmitting(false);
         return;
       }
@@ -224,7 +227,7 @@ export default function Home() {
         });
         return;
       } catch (meetingError) {
-        setError(meetingError instanceof Error ? meetingError.message : '加入会议失败，请重试');
+        setError(meetingError instanceof Error ? meetingError.message : t('meeting.errors.joinFailed'));
         setIsMeetingSubmitting(false);
         return;
       }
@@ -233,6 +236,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-meeting-bg flex flex-col items-center justify-center p-4">
+      {/* Language Switcher */}
+      <div className="fixed top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
+
       {/* Logo */}
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-3 mb-3">
@@ -244,7 +252,7 @@ export default function Home() {
           </h1>
         </div>
         <p className="text-slate-400 text-sm">
-          视频会议 · 会议录制 · <span className="text-meeting-accent">AI 纪要</span> · 远程控制
+          {t('app.subtitle')}
         </p>
       </div>
 
@@ -252,7 +260,7 @@ export default function Home() {
         <div className="bg-meeting-surface rounded-2xl shadow-2xl border border-meeting-border p-8">
           <div className="flex items-center gap-2 mb-4">
             <ShieldCheck className="w-5 h-5 text-meeting-accent" />
-            <h2 className="text-white font-semibold text-lg">账号与身份</h2>
+            <h2 className="text-white font-semibold text-lg">{t('auth.title')}</h2>
           </div>
 
           {!user ? (
@@ -265,7 +273,7 @@ export default function Home() {
                     authMode === 'login' ? 'bg-meeting-accent text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  登录
+                  {t('auth.login')}
                 </button>
                 <button
                   type="button"
@@ -274,19 +282,19 @@ export default function Home() {
                     authMode === 'register' ? 'bg-meeting-accent text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  注册
+                  {t('auth.register')}
                 </button>
               </div>
 
               <form onSubmit={handleAuthSubmit} className="space-y-4">
                 {authMode === 'register' && (
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1.5">姓名</label>
+                    <label className="block text-sm text-slate-400 mb-1.5">{t('auth.name')}</label>
                     <input
                       type="text"
                       value={authName}
                       onChange={(e) => setAuthName(e.target.value)}
-                      placeholder="请输入姓名"
+                      placeholder={t('auth.namePlaceholder')}
                       maxLength={50}
                       className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500
                                  focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
@@ -295,7 +303,7 @@ export default function Home() {
                 )}
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">邮箱</label>
+                  <label className="block text-sm text-slate-400 mb-1.5">{t('auth.email')}</label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
@@ -312,14 +320,14 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">密码</label>
+                  <label className="block text-sm text-slate-400 mb-1.5">{t('auth.password')}</label>
                   <div className="relative">
                     <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="至少 8 位"
+                      placeholder={t('auth.passwordPlaceholder')}
                       autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
                       minLength={authMode === 'register' ? 8 : undefined}
                       maxLength={128}
@@ -334,12 +342,12 @@ export default function Home() {
                         to={email.trim() ? `/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}` : '/reset-password'}
                         className="text-xs text-meeting-accent hover:text-white transition-colors"
                       >
-                        忘记密码？
+                        {t('auth.forgotPassword')}
                       </Link>
                     </div>
                   )}
                   {authMode === 'register' && (
-                    <p className="mt-1 text-xs text-slate-500">密码长度需在 8 到 128 个字符之间</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('auth.passwordHint')}</p>
                   )}
                 </div>
 
@@ -356,7 +364,7 @@ export default function Home() {
                              transition-colors shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
                 >
                   {isAuthSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                  {authMode === 'login' ? '登录账号' : '注册并登录'}
+                  {authMode === 'login' ? t('auth.loginBtn') : t('auth.registerBtn')}
                 </button>
               </form>
             </>
@@ -373,7 +381,7 @@ export default function Home() {
                   </div>
                   {isAdmin && (
                     <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5 flex-shrink-0">
-                      管理员
+                      {t('auth.admin')}
                     </span>
                   )}
                 </div>
@@ -386,7 +394,7 @@ export default function Home() {
                              transition-colors flex items-center justify-center gap-2"
                 >
                   <SlidersHorizontal className="w-4 h-4" />
-                  AI 服务配置
+                  {t('auth.aiSettings')}
                 </button>
               )}
               <button
@@ -396,7 +404,7 @@ export default function Home() {
                            transition-colors flex items-center justify-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
-                退出登录
+                {t('auth.logout')}
               </button>
             </div>
           )}
@@ -405,12 +413,12 @@ export default function Home() {
         <div className="bg-meeting-surface rounded-2xl shadow-2xl border border-meeting-border p-8">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-white font-semibold text-lg">会议入口</h2>
-              <p className="text-slate-400 text-sm mt-1">支持账号登录、房间口令和主持人权限控制</p>
+              <h2 className="text-white font-semibold text-lg">{t('meeting.title')}</h2>
+              <p className="text-slate-400 text-sm mt-1">{t('meeting.subtitle')}</p>
             </div>
             {!user && (
               <span className="text-xs text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-3 py-1">
-                需先登录
+                {t('meeting.needLogin')}
               </span>
             )}
           </div>
@@ -426,7 +434,7 @@ export default function Home() {
               }`}
             >
               <Plus className="w-4 h-4" />
-              创建会议
+              {t('meeting.create')}
             </button>
             <button
               type="button"
@@ -438,18 +446,18 @@ export default function Home() {
               }`}
             >
               <LogIn className="w-4 h-4" />
-              加入会议
+              {t('meeting.join')}
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-400 mb-1.5">会议显示名</label>
+              <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.displayName')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="会议内显示名称"
+                placeholder={t('meeting.displayNamePlaceholder')}
                 maxLength={50}
                 disabled={!user}
                 className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
@@ -459,12 +467,12 @@ export default function Home() {
 
             {mode === 'create' ? (
               <div>
-                <label className="block text-sm text-slate-400 mb-1.5">会议标题</label>
+                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.meetingTitle')}</label>
                 <input
                   type="text"
                   value={roomTitle}
                   onChange={(e) => setRoomTitle(e.target.value)}
-                  placeholder="例如：产品评审会"
+                  placeholder={t('meeting.meetingTitlePlaceholder')}
                   maxLength={80}
                   disabled={!user}
                   className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
@@ -473,12 +481,12 @@ export default function Home() {
               </div>
             ) : (
               <div>
-                <label className="block text-sm text-slate-400 mb-1.5">会议室 ID</label>
+                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.roomId')}</label>
                 <input
                   type="text"
                   value={roomInput}
                   onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
-                  placeholder="例如：ABC1234"
+                  placeholder={t('meeting.roomIdPlaceholder')}
                   maxLength={32}
                   disabled={!user}
                   className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
@@ -488,12 +496,12 @@ export default function Home() {
             )}
 
             <div>
-              <label className="block text-sm text-slate-400 mb-1.5">会议口令（可选）</label>
+              <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.passcode')}</label>
               <input
                 type="password"
                 value={roomPasscode}
                 onChange={(e) => setRoomPasscode(e.target.value)}
-                placeholder={mode === 'create' ? '为空则不启用房间口令' : '如房间设置口令，请输入'}
+                placeholder={mode === 'create' ? t('meeting.passcodePlaceholderCreate') : t('meeting.passcodePlaceholderJoin')}
                 maxLength={32}
                 disabled={!user}
                 className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
@@ -503,22 +511,22 @@ export default function Home() {
 
             {mode === 'create' && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1.5">邀请参与者（可选）</label>
+                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.inviteEmails')}</label>
                 <textarea
                   value={inviteEmailsInput}
                   onChange={(e) => setInviteEmailsInput(e.target.value)}
-                  placeholder={'输入参与者邮箱，多个用逗号、分号或换行分隔'}
+                  placeholder={t('meeting.inviteEmailsPlaceholder')}
                   rows={3}
                   disabled={!user}
                   className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
                              focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors resize-none text-sm"
                 />
-                <p className="mt-1 text-xs text-slate-500">创建后将自动向受邀者发送邀请邮件</p>
+                <p className="mt-1 text-xs text-slate-500">{t('meeting.inviteEmailsHint')}</p>
               </div>
             )}
             {mode === 'create' && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1.5">会议类型</label>
+                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.meetingType')}</label>
                 <div className="flex gap-2 bg-meeting-bg rounded-xl p-1">
                   <button
                     type="button"
@@ -528,7 +536,7 @@ export default function Home() {
                       meetingType === 'instant' ? 'bg-meeting-accent text-white shadow-sm' : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    即时会议
+                    {t('meeting.instant')}
                   </button>
                   <button
                     type="button"
@@ -539,7 +547,7 @@ export default function Home() {
                     }`}
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    预约会议
+                    {t('meeting.scheduled')}
                   </button>
                 </div>
               </div>
@@ -547,7 +555,7 @@ export default function Home() {
 
             {mode === 'create' && meetingType === 'scheduled' && (
               <div>
-                <label className="block text-sm text-slate-400 mb-1.5">会议时间</label>
+                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.scheduledTime')}</label>
                 <input
                   type="datetime-local"
                   value={scheduledAt}
@@ -557,7 +565,7 @@ export default function Home() {
                   className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white disabled:opacity-50
                              focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
                 />
-                <p className="mt-1 text-xs text-slate-500">邀请邮件将包含日历邀请（.ics）附件</p>
+                <p className="mt-1 text-xs text-slate-500">{t('meeting.scheduledTimeHint')}</p>
               </div>
             )}
             {error && (
@@ -579,7 +587,7 @@ export default function Home() {
               ) : (
                 <LogIn className="w-5 h-5" />
               )}
-              {mode === 'create' ? '创建并进入会议' : '验证后加入会议'}
+              {mode === 'create' ? t('meeting.createBtn') : t('meeting.joinBtn')}
             </button>
           </form>
         </div>
@@ -588,9 +596,9 @@ export default function Home() {
       {/* Feature badges */}
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         {[
-          { icon: <Video className="w-4 h-4" />, label: 'HD 视频通话' },
-          { icon: <Users className="w-4 h-4" />, label: '多人会议' },
-          { icon: <Sparkles className="w-4 h-4" />, label: 'AI 会议纪要' },
+          { icon: <Video className="w-4 h-4" />, label: t('meeting.features.hdVideo') },
+          { icon: <Users className="w-4 h-4" />, label: t('meeting.features.multiParty') },
+          { icon: <Sparkles className="w-4 h-4" />, label: t('meeting.features.aiMinutes') },
         ].map((f) => (
           <div
             key={f.label}

@@ -33,6 +33,8 @@ export interface AiServiceConfig {
   asrModel: string;
   /** `'***set***'` when an API key is configured; `''` when not set. */
   asrApiKey: string;
+  /** ISO 639-1 language code. Empty string = auto-detect. */
+  asrLanguage: string;
   llmBaseUrl: string;
   llmModel: string;
   llmApiKey: string;  /** HuggingFace token for downloading gated models. Masked when set. */

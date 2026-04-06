@@ -1,4 +1,5 @@
 import { Crown, Lock, Shield, Unlock, UserRoundX, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { PeerData } from '../types';
 
 interface SecurityPanelProps {
@@ -22,12 +23,13 @@ export default function SecurityPanel({
   onTransferHost,
   onClose,
 }: SecurityPanelProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-meeting-border">
         <div className="flex items-center gap-2 text-white font-medium">
           <Shield className="w-4 h-4 text-meeting-accent" />
-          会议权限
+          {t('security.title')}
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
           <X className="w-5 h-5" />
@@ -37,11 +39,11 @@ export default function SecurityPanel({
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         <div className="bg-meeting-bg border border-meeting-border rounded-xl p-4 space-y-2">
           <p className="text-white font-medium">{roomTitle}</p>
-          <p className="text-slate-400 text-sm">当前状态：{roomLocked ? '会议已锁定，新成员无法加入' : '会议开放中'}</p>
+          <p className="text-slate-400 text-sm">{t('security.currentStatus')}{roomLocked ? t('security.statusLocked') : t('security.statusOpen')}</p>
         </div>
 
         <div className="space-y-3">
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">入会控制</p>
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{t('security.entryControl')}</p>
           {isHost ? (
             <button
               onClick={onToggleLock}
@@ -52,20 +54,20 @@ export default function SecurityPanel({
               }`}
             >
               {roomLocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-              {roomLocked ? '解锁会议' : '锁定会议'}
+              {roomLocked ? t('security.unlock') : t('security.lock')}
             </button>
           ) : (
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-sm text-yellow-300 leading-relaxed">
-              只有主持人可以修改会议权限和移除参会者。
+              {t('security.noHostPermission')}
             </div>
           )}
         </div>
 
         <div className="space-y-3">
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">参会者管理</p>
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">{t('security.participantManagement')}</p>
           {peers.length === 0 && (
             <div className="bg-meeting-bg border border-meeting-border rounded-xl p-4 text-sm text-slate-500">
-              当前没有其他参会者。
+              {t('security.noParticipants')}
             </div>
           )}
 
@@ -76,14 +78,14 @@ export default function SecurityPanel({
             >
               <div>
                 <p className="text-white text-sm font-medium">{peer.name}</p>
-                <p className="text-slate-500 text-xs">{peer.isHost ? '主持人' : '参会者'}</p>
+                <p className="text-slate-500 text-xs">{peer.isHost ? t('security.host') : t('security.participant')}</p>
               </div>
               {isHost ? (
                 <div className="flex items-center gap-2">
                   {peer.isHost ? (
                     <span className="inline-flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-lg px-3 py-2 text-xs">
                       <Crown className="w-3.5 h-3.5" />
-                      当前主持人
+                      {t('security.currentHost')}
                     </span>
                   ) : (
                     <button
@@ -91,7 +93,7 @@ export default function SecurityPanel({
                       className="bg-meeting-accent/10 border border-meeting-accent/30 hover:bg-meeting-accent/20 text-meeting-accent rounded-lg px-3 py-2 text-xs transition-colors flex items-center gap-1.5"
                     >
                       <Crown className="w-3.5 h-3.5" />
-                      设为主持人
+                      {t('security.setHost')}
                     </button>
                   )}
                   {!peer.isHost && (
@@ -100,12 +102,12 @@ export default function SecurityPanel({
                       className="bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-300 rounded-lg px-3 py-2 text-xs transition-colors flex items-center gap-1.5"
                     >
                       <UserRoundX className="w-3.5 h-3.5" />
-                      移除
+                      {t('security.remove')}
                     </button>
                   )}
                 </div>
               ) : (
-                <span className="text-slate-500 text-xs">只读</span>
+                <span className="text-slate-500 text-xs">{t('security.readOnly')}</span>
               )}
             </div>
           ))}

@@ -84,11 +84,13 @@ export class AIService {
   async transcribe(filePath: string): Promise<string> {
     const { client, model } = this.getAsrClient();
     const fileStream = fs.createReadStream(filePath);
+    const language = aiConfigService.getConfig().asrLanguage || undefined;
 
     const response = await client.audio.transcriptions.create({
       file: fileStream,
       model,
       response_format: 'text',
+      ...(language ? { language } : {}),
     });
 
     return response as unknown as string;

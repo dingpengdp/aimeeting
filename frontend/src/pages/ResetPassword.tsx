@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Copy, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 interface ForgotPasswordResponse {
   message: string;
@@ -13,6 +14,7 @@ function isValidEmail(value: string): boolean {
 }
 
 export default function ResetPassword() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token')?.trim() ?? '';
   const isResetMode = token.length > 0;
@@ -35,7 +37,7 @@ export default function ResetPassword() {
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!isValidEmail(normalizedEmail)) {
-      setError('请输入有效的邮箱地址');
+      setError(t('resetPassword.errors.invalidEmail'));
       return;
     }
 
@@ -49,7 +51,7 @@ export default function ResetPassword() {
       setSuccessMessage(response.message);
       setPreviewResetLink(response.previewResetLink ?? '');
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : '密码重置请求失败');
+      setError(requestError instanceof Error ? requestError.message : t('resetPassword.errors.requestFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -61,12 +63,12 @@ export default function ResetPassword() {
     setSuccessMessage('');
 
     if (password.length < 8 || password.length > 128) {
-      setError('密码长度需在 8 到 128 个字符之间');
+      setError(t('resetPassword.errors.passwordLength'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('两次输入的密码不一致');
+      setError(t('resetPassword.errors.passwordMismatch'));
       return;
     }
 
@@ -81,7 +83,7 @@ export default function ResetPassword() {
       setPassword('');
       setConfirmPassword('');
     } catch (resetError) {
-      setError(resetError instanceof Error ? resetError.message : '密码重置失败');
+      setError(resetError instanceof Error ? resetError.message : t('resetPassword.errors.resetFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -102,18 +104,16 @@ export default function ResetPassword() {
       <div className="w-full max-w-md bg-meeting-surface rounded-2xl shadow-2xl border border-meeting-border p-8">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-6">
           <ArrowLeft className="w-4 h-4" />
-          返回首页
+          {t('resetPassword.back')}
         </Link>
 
         <div className="flex items-center gap-2 mb-3">
           <ShieldCheck className="w-5 h-5 text-meeting-accent" />
-          <h1 className="text-white font-semibold text-xl">{isResetMode ? '重置密码' : '忘记密码'}</h1>
+          <h1 className="text-white font-semibold text-xl">{isResetMode ? t('resetPassword.titleReset') : t('resetPassword.titleForgot')}</h1>
         </div>
 
         <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-          {isResetMode
-            ? '请输入新的登录密码。重置成功后，返回首页使用新密码登录即可。'
-            : '输入已注册邮箱。若已配置 SMTP，会发送邮件；否则在本地开发环境展示临时重置链接。'}
+          {isResetMode ? t('resetPassword.descReset') : t('resetPassword.descForgot')}
         </p>
 
         {successMessage && (
@@ -123,7 +123,7 @@ export default function ResetPassword() {
               <div>{successMessage}</div>
               {isResetMode && (
                 <Link to={presetEmail ? `/?email=${encodeURIComponent(presetEmail)}` : '/'} className="inline-block mt-2 text-xs text-green-200 hover:text-white transition-colors">
-                  返回首页登录
+                  {t('resetPassword.backToLogin')}
                 </Link>
               )}
             </div>
@@ -139,7 +139,7 @@ export default function ResetPassword() {
         {!isResetMode ? (
           <form onSubmit={handleRequestReset} className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-400 mb-1.5">邮箱</label>
+              <label className="block text-sm text-slate-400 mb-1.5">{t('resetPassword.emailLabel')}</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -162,20 +162,20 @@ export default function ResetPassword() {
                          transition-colors shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
             >
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              发送重置方式
+              {t('resetPassword.sendBtn')}
             </button>
           </form>
         ) : (
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-400 mb-1.5">新密码</label>
+              <label className="block text-sm text-slate-400 mb-1.5">{t('resetPassword.newPassword')}</label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="至少 8 位"
+                  placeholder={t('resetPassword.passwordPlaceholder')}
                   autoComplete="new-password"
                   minLength={8}
                   maxLength={128}
@@ -187,14 +187,14 @@ export default function ResetPassword() {
             </div>
 
             <div>
-              <label className="block text-sm text-slate-400 mb-1.5">确认新密码</label>
+              <label className="block text-sm text-slate-400 mb-1.5">{t('resetPassword.confirmPassword')}</label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  placeholder="再次输入新密码"
+                  placeholder={t('resetPassword.confirmPlaceholder')}
                   autoComplete="new-password"
                   minLength={8}
                   maxLength={128}
@@ -205,7 +205,7 @@ export default function ResetPassword() {
               </div>
             </div>
 
-            <p className="text-xs text-slate-500">密码长度需在 8 到 128 个字符之间</p>
+            <p className="text-xs text-slate-500">{t('resetPassword.passwordHint')}</p>
 
             <button
               type="submit"
@@ -214,7 +214,7 @@ export default function ResetPassword() {
                          transition-colors shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
             >
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-              更新密码
+              {t('resetPassword.updateBtn')}
             </button>
           </form>
         )}
@@ -222,7 +222,7 @@ export default function ResetPassword() {
         {previewResetLink && (
           <div className="mt-6 bg-meeting-bg border border-meeting-border rounded-xl p-4 space-y-3">
             <p className="text-xs text-slate-400 leading-relaxed">
-              当前未配置 SMTP 邮件服务。开发环境可直接使用下面的重置链接完成密码重置。
+              {t('resetPassword.devLinkHint')}
             </p>
             <a href={previewResetLink} className="block text-sm text-meeting-accent break-all hover:text-white transition-colors">
               {previewResetLink}
@@ -233,7 +233,7 @@ export default function ResetPassword() {
               className="inline-flex items-center gap-2 text-xs text-slate-300 hover:text-white transition-colors"
             >
               <Copy className="w-3.5 h-3.5" />
-              {copied ? '已复制重置链接' : '复制重置链接'}
+              {copied ? t('resetPassword.copiedLink') : t('resetPassword.copyLink')}
             </button>
           </div>
         )}
