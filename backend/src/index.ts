@@ -23,6 +23,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TurnServer = require('node-turn');
 import { RoomManager } from './rooms';
 import { setupSocketHandlers } from './socketHandlers';
 import { aiService } from './aiService';
@@ -645,6 +647,29 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`🚀 AiMeeting server running on http://localhost:${PORT}`);
+
+// ── Built-in TURN server ──────────────────────────────────────────────────────
+// Runs on UDP/TCP 3478 to relay WebRTC media when direct P2P is blocked.
+const TURN_HOST = process.env.TURN_HOST || '0.0.0.0';
+const TURN_PORT = Number(process.env.INTERNAL_TURN_PORT || 3478);
+const TURN_USER = process.env.INTERNAL_TURN_USER || 'aimeeting';
+const TURN_PASS = process.env.INTERNAL_TURN_PASS || 'aimeeting2024';
+const TURN_REALM = process.env.INTERNAL_TURN_REALM || 'aimeeting.local';
+
+const turnServer = new TurnServer({
+  listeningIps: [TURN_HOST],
+  relayIps: [TURN_HOST],
+  authMech: 'long-term',
+  realm: TURN_REALM,
+  listeningPort: TURN_PORT,
+  debugLevel: 'ERROR',
+  minPort: 49152,
+  maxPort: 65535,
+});
+turnServer.addUser(TURN_USER, TURN_PASS);
+turnServer.start();
+console.log(`🔄 Built-in TURN server listening on ${TURN_HOST}:${TURN_PORT}`);
+
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`🚀 AiMeeting server running on http://0.0.0.0:${PORT}`);
 });

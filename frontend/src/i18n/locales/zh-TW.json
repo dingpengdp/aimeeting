@@ -83,6 +83,7 @@
     "remoteControl": "遠端控制",
     "invite": "邀請",
     "security": "權限",
+    "devices": "設備",
     "aiConfig": "AI設定",
     "leave": "離開"
   },
@@ -148,7 +149,18 @@
     "requesting": "等待對方確認…",
     "noSharingPeers": "目前沒有參會者在分享螢幕",
     "noSharingHint": "待對方開始螢幕分享後，可在此申請控制權限",
-    "rejected": "對方拒絕了遠端控制申請"
+    "rejected": "對方拒絕了遠端控制申請",
+    "agentActive": "用戶端已連接",
+    "agentNone": "僅指標演示",
+    "confirmFullTitle": "完整遠端控制",
+    "confirmFullDesc": "對方已安裝並執行用戶端，接受後將實際移動對方滑鼠並可點擊。",
+    "confirmPointerTitle": "指標演示模式",
+    "confirmPointerDesc": "對方未安裝用戶端，僅可演示游標位置，不會實際操作對方滑鼠。",
+    "requestModeFull": "完整控制（用戶端已就緒，將實際操控滑鼠）",
+    "requestModePointer": "指標演示（無用戶端，僅展示游標）",
+    "modeFullActive": "完整控制模式（用戶端活躍）",
+    "modePointerActive": "指標演示模式（無用戶端）",
+    "wantsControl": "希望控制您的螢幕"
   },
   "security": {
     "title": "會議權限",
@@ -167,6 +179,20 @@
     "setHost": "設為主持人",
     "remove": "移除",
     "readOnly": "唯讀"
+  },
+  "devices": {
+    "title": "設備設定",
+    "setupTitle": "檢查攝影機和麥克風",
+    "setupDescription": "入會前先確認要使用的攝影機和麥克風。",
+    "previewDescription": "預覽區會使用目前的設備選擇，您現在可以切換，也可以入會後再調整。",
+    "camera": "攝影機",
+    "microphone": "麥克風",
+    "noneDetected": "未偵測到設備",
+    "refresh": "重新整理設備",
+    "preparing": "準備中…",
+    "continue": "進入會議",
+    "refreshFailed": "重新整理設備失敗",
+    "switchFailed": "切換設備失敗"
   },
   "resetPassword": {
     "back": "返回首頁",
@@ -291,6 +317,18 @@
     "locked": "已鎖定",
     "remoteControlRequest": "<0>{{name}}</0> 請求遠端控制您的螢幕",
     "remoteControlRequestSuffix": "請求遠端控制您的螢幕",
+    "agentUnavailable": "桌面用戶端目前不可用，本次會議將自動降級為僅指標演示模式。",
+    "mediaAudioOnly": "目前無法使用攝影機，已自動降級為僅麥克風入會。",
+    "mediaAudioOnlyPermission": "攝影機權限被阻止。請在 macOS 的「隱私權與安全性 > 攝影機」中允許 AiMeeting，然後重新開啟應用。",
+    "mediaAudioOnlyDeviceMissing": "未偵測到可用攝影機，已自動降級為僅麥克風入會。",
+    "mediaVideoOnly": "目前無法使用麥克風，已自動降級為僅攝影機入會。",
+    "mediaVideoOnlyPermission": "麥克風權限被阻止。請在 macOS 的「隱私權與安全性 > 麥克風」中允許 AiMeeting，然後重新開啟應用。",
+    "mediaVideoOnlyDeviceMissing": "未偵測到可用麥克風，已自動降級為僅攝影機入會。",
+    "mediaNone": "攝影機和麥克風目前都不可用，您已在沒有本機音視訊的情況下進入會議。",
+    "mediaNonePermission": "攝影機和麥克風權限被阻止。請在 macOS 的「隱私權與安全性」中允許 AiMeeting，然後重新開啟應用。",
+    "mediaNoneDeviceMissing": "目前這台用戶端未偵測到可用的攝影機或麥克風裝置。",
+    "requestModeFullNotice": "完整控制模式（將實際移動滑鼠，需已安裝用戶端）",
+    "requestModePointerNotice": "指標演示模式（僅展示游標位置，不操作滑鼠）",
     "accept": "接受",
     "reject": "拒絕",
     "kickedMessage": "您已被主持人移出會議",
@@ -303,6 +341,20 @@
     "label": "語言",
     "zhCN": "简体中文",
     "zhTW": "繁體中文",
-    "en": "English"
+    "en": "English"  },
+  "common": {
+    "back": "返回",
+    "cancel": "取消",
+    "tools": "工具"
+  },
+  "serverSetup": {
+    "title": "連接到伺服器",
+    "description": "請輸入 AiMeeting 後端伺服器位址，例如 http://192.168.1.100:3001",
+    "urlLabel": "伺服器位址",
+    "urlPlaceholder": "http://192.168.1.100:3001",
+    "connectButton": "連接",
+    "connecting": "正在連接…",
+    "errorInvalidUrl": "請輸入有效的 URL（以 http:// 或 https:// 開頭）",
+    "errorUnreachable": "無法連接到伺服器，請檢查位址和網路"
   }
 }

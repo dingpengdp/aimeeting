@@ -1,13 +1,12 @@
 import { getStoredToken } from './session';
-
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? '';
+import { getServerUrl } from '../lib/config';
 
 interface ApiFetchOptions {
   auth?: boolean;
 }
 
 function toAbsolutePath(path: string): string {
-  return `${BACKEND_URL}${path}`;
+  return `${getServerUrl()}${path}`;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

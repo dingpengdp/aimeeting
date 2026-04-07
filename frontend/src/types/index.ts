@@ -28,6 +28,11 @@ export interface ClientConfig {
   iceServers: RTCIceServer[];
 }
 
+export interface MediaDevicePreferences {
+  audioInputId: string | null;
+  videoInputId: string | null;
+}
+
 export interface AiServiceConfig {
   asrBaseUrl: string;
   asrModel: string;
@@ -65,6 +70,8 @@ export interface PeerData {
   stream: MediaStream | null;
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
+  /** Whether this peer has the remote-agent running on their machine. */
+  agentEnabled: boolean;
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
@@ -103,7 +110,7 @@ export interface RemoteControlState {
   /** This user is the active controller */
   isControlling: boolean;
   /** Pending request shown to host */
-  pendingRequest: { fromId: string; fromName: string } | null;
+  pendingRequest: { fromId: string; fromName: string; agentMode: boolean } | null;
   /** ID of the peer who last rejected a control request */
   lastRejectedId: string | null;
   pointers: RemotePointer[];

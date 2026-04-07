@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  ArrowLeft,
   Video,
   Users,
   Plus,
   LogIn,
+  Menu,
   Sparkles,
   Loader2,
   LogOut,
@@ -14,12 +16,15 @@ import {
   KeyRound,
   Calendar,
   SlidersHorizontal,
+  Settings2,
+  X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
 import type { RoomSummary } from '../types';
 import AiSettingsPanel from '../components/AiSettingsPanel';
+import HomeDeviceSettingsModal from '../components/HomeDeviceSettingsModal';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
 function isValidEmail(value: string): boolean {
@@ -33,6 +38,9 @@ export default function Home() {
   const { t } = useTranslation();
 
   const [showAiSettings, setShowAiSettings] = useState(false);
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [meetingEntryView, setMeetingEntryView] = useState<'shortcut' | 'create' | 'join'>('shortcut');
 
   const [name, setName] = useState('');
   const [roomInput, setRoomInput] = useState('');
@@ -86,7 +94,35 @@ export default function Home() {
     }
     setMode('join');
     setRoomInput(presetRoomId);
-  }, [searchParams]);
+    if (user) {
+      setMeetingEntryView('join');
+    }
+  }, [searchParams, user]);
+
+  useEffect(() => {
+    setShowToolsMenu(false);
+    if (!user) {
+      setMeetingEntryView('shortcut');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!showToolsMenu) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowToolsMenu(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showToolsMenu]);
 
   const handleAuthSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -234,42 +270,173 @@ export default function Home() {
     }
   };
 
+  const handleLogout = () => {
+    setShowToolsMenu(false);
+    logout();
+  };
+
+  const handleOpenAiSettings = () => {
+    setShowToolsMenu(false);
+    setShowAiSettings(true);
+  };
+
+  const handleOpenDeviceSettings = () => {
+    setShowToolsMenu(false);
+    setShowDeviceSettings(true);
+  };
+
+  const handleOpenMeetingEntry = (nextMode: 'create' | 'join', nextMeetingType?: 'instant' | 'scheduled') => {
+    setError('');
+    setMode(nextMode);
+    if (nextMode === 'create' && nextMeetingType) {
+      setMeetingType(nextMeetingType);
+    }
+    setMeetingEntryView(nextMode);
+  };
+
+  const handleBackToShortcuts = () => {
+    setError('');
+    setMeetingEntryView('shortcut');
+  };
+
+  const featureBadges = [
+    { icon: <Video className="w-4 h-4" />, label: t('meeting.features.hdVideo') },
+    { icon: <Users className="w-4 h-4" />, label: t('meeting.features.multiParty') },
+    { icon: <Sparkles className="w-4 h-4" />, label: t('meeting.features.aiMinutes') },
+  ];
+
+  const meetingHighlights = [
+    {
+      icon: <Plus className="w-4 h-4" />,
+      title: t('meeting.create'),
+      detail: t('meeting.instant'),
+      onClick: () => handleOpenMeetingEntry('create', 'instant'),
+    },
+    {
+      icon: <LogIn className="w-4 h-4" />,
+      title: t('meeting.join'),
+      detail: t('meeting.roomId'),
+      onClick: () => handleOpenMeetingEntry('join'),
+    },
+    {
+      icon: <Calendar className="w-4 h-4" />,
+      title: t('meeting.scheduled'),
+      detail: t('meeting.scheduledTime'),
+      onClick: () => handleOpenMeetingEntry('create', 'scheduled'),
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-meeting-bg flex flex-col items-center justify-center p-4">
-      {/* Language Switcher */}
-      <div className="fixed top-4 right-4 z-10">
-        <LanguageSwitcher />
+    <div className="relative min-h-screen overflow-hidden bg-meeting-bg">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.28),_transparent_55%)]" />
+      <div className="pointer-events-none absolute left-[-8rem] top-32 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-16 right-[-6rem] h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+
+      <div className="fixed right-4 top-4 z-20">
+        {user && showToolsMenu && (
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 bg-slate-950/30 backdrop-blur-[1px]"
+            onClick={() => setShowToolsMenu(false)}
+          />
+        )}
+
+        {!user ? (
+          <div className="rounded-full bg-black/15 p-1 backdrop-blur-sm">
+            <LanguageSwitcher iconOnly />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="rounded-full bg-black/15 p-1 backdrop-blur-sm">
+              <LanguageSwitcher iconOnly />
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowToolsMenu((current) => !current)}
+                className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/15 text-slate-200 backdrop-blur-sm transition-colors hover:bg-black/25 hover:text-white"
+                aria-expanded={showToolsMenu}
+                aria-label={t('common.tools')}
+                title={t('common.tools')}
+              >
+                {showToolsMenu ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </button>
+
+              {showToolsMenu && (
+                <div className="absolute right-0 top-full z-10 mt-2 w-[min(16rem,calc(100vw-2rem))] rounded-2xl bg-slate-950/88 p-2 shadow-xl shadow-slate-950/35 backdrop-blur">
+                  <div className="px-3 py-2">
+                    <p className="truncate text-sm font-medium text-white">{user.name}</p>
+                    <p className="truncate text-xs text-slate-500">{user.email}</p>
+                    {isAdmin && <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-amber-300/80">{t('auth.admin')}</p>}
+                  </div>
+
+                  {(user && isAdmin) && <div className="mx-1 h-px bg-white/5" />}
+
+                  <button
+                    type="button"
+                    onClick={handleOpenDeviceSettings}
+                    className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+                  >
+                    <Settings2 className="h-4 w-4" />
+                    <span>{t('controls.devices')}</span>
+                  </button>
+
+                  {user && isAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleOpenAiSettings}
+                      className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+                    >
+                      <SlidersHorizontal className="h-4 w-4" />
+                      <span>{t('auth.aiSettings')}</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>{t('auth.logout')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Logo */}
-      <div className="mb-10 text-center">
-        <div className="flex items-center justify-center gap-3 mb-3">
-          <div className="w-12 h-12 bg-meeting-accent rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-            <Video className="w-7 h-7 text-white" />
+      <div className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-4 pt-10 sm:pb-6 sm:pt-12">
+        <div className="mb-5 text-center sm:mb-6">
+          <div className="mb-2.5 flex items-center justify-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-meeting-accent shadow-lg shadow-blue-500/30">
+              <Video className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Ai<span className="text-meeting-accent">Meeting</span>
+            </h1>
           </div>
-          <h1 className="text-4xl font-bold text-white tracking-tight">
-            Ai<span className="text-meeting-accent">Meeting</span>
-          </h1>
+          <p className="text-xs text-slate-400 sm:text-sm">{t('app.subtitle')}</p>
         </div>
-        <p className="text-slate-400 text-sm">
-          {t('app.subtitle')}
-        </p>
-      </div>
 
-      <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[360px_1fr]">
-        <div className="bg-meeting-surface rounded-2xl shadow-2xl border border-meeting-border p-8">
-          <div className="flex items-center gap-2 mb-4">
-            <ShieldCheck className="w-5 h-5 text-meeting-accent" />
-            <h2 className="text-white font-semibold text-lg">{t('auth.title')}</h2>
-          </div>
+        {!user ? (
+          <div className="flex flex-1 items-start justify-center">
+            <div className="w-full max-w-sm rounded-2xl border border-meeting-border bg-meeting-surface/90 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-7">
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-meeting-accent" />
+                <h2 className="text-base font-semibold text-white">{t('auth.title')}</h2>
+              </div>
 
-          {!user ? (
-            <>
-              <div className="flex gap-2 mb-6 bg-meeting-bg rounded-xl p-1">
+              <div className="mb-4 flex gap-2 rounded-lg bg-meeting-bg p-0.5">
                 <button
                   type="button"
-                  onClick={() => setAuthMode('login')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                  onClick={() => {
+                    setAuthMode('login');
+                    setAuthError('');
+                  }}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
                     authMode === 'login' ? 'bg-meeting-accent text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -277,8 +444,11 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAuthMode('register')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                  onClick={() => {
+                    setAuthMode('register');
+                    setAuthError('');
+                  }}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
                     authMode === 'register' ? 'bg-meeting-accent text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -286,26 +456,25 @@ export default function Home() {
                 </button>
               </div>
 
-              <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <form onSubmit={handleAuthSubmit} className="space-y-3">
                 {authMode === 'register' && (
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1.5">{t('auth.name')}</label>
+                    <label className="mb-1 block text-xs text-slate-400">{t('auth.name')}</label>
                     <input
                       type="text"
                       value={authName}
                       onChange={(e) => setAuthName(e.target.value)}
                       placeholder={t('auth.namePlaceholder')}
                       maxLength={50}
-                      className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500
-                                 focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
+                      className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">{t('auth.email')}</label>
+                  <label className="mb-1 block text-xs text-slate-400">{t('auth.email')}</label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Mail className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                     <input
                       type="email"
                       value={email}
@@ -313,16 +482,15 @@ export default function Home() {
                       placeholder="you@example.com"
                       autoComplete="email"
                       required
-                      className="w-full bg-meeting-bg border border-meeting-border rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500
-                                 focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
+                      className="w-full rounded-lg border border-meeting-border bg-meeting-bg py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1.5">{t('auth.password')}</label>
+                  <label className="mb-1 block text-xs text-slate-400">{t('auth.password')}</label>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
                     <input
                       type="password"
                       value={password}
@@ -332,27 +500,24 @@ export default function Home() {
                       minLength={authMode === 'register' ? 8 : undefined}
                       maxLength={128}
                       required
-                      className="w-full bg-meeting-bg border border-meeting-border rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500
-                                 focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
+                      className="w-full rounded-lg border border-meeting-border bg-meeting-bg py-2.5 pl-9 pr-3 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
                     />
                   </div>
                   {authMode === 'login' && (
-                    <div className="mt-2 text-right">
+                    <div className="mt-1.5 text-right">
                       <Link
                         to={email.trim() ? `/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}` : '/reset-password'}
-                        className="text-xs text-meeting-accent hover:text-white transition-colors"
+                        className="text-xs text-meeting-accent transition-colors hover:text-white"
                       >
                         {t('auth.forgotPassword')}
                       </Link>
                     </div>
                   )}
-                  {authMode === 'register' && (
-                    <p className="mt-1 text-xs text-slate-500">{t('auth.passwordHint')}</p>
-                  )}
+                  {authMode === 'register' && <p className="mt-1 text-[11px] text-slate-500">{t('auth.passwordHint')}</p>}
                 </div>
 
                 {authError && (
-                  <p className="text-meeting-danger text-sm py-2 px-3 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-meeting-danger">
                     {authError}
                   </p>
                 )}
@@ -360,255 +525,206 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={isAuthSubmitting || isLoading}
-                  className="w-full bg-meeting-accent hover:bg-blue-600 disabled:opacity-60 text-white font-semibold py-3 rounded-xl
-                             transition-colors shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-meeting-accent py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-600 disabled:opacity-60"
                 >
-                  {isAuthSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  {isAuthSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                   {authMode === 'login' ? t('auth.loginBtn') : t('auth.registerBtn')}
                 </button>
               </form>
-            </>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-meeting-bg border border-meeting-border rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-meeting-accent/20 flex items-center justify-center">
-                    <UserCircle2 className="w-6 h-6 text-meeting-accent" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium">{user.name}</p>
-                    <p className="text-slate-400 text-sm truncate">{user.email}</p>
-                  </div>
-                  {isAdmin && (
-                    <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5 flex-shrink-0">
-                      {t('auth.admin')}
-                    </span>
-                  )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-1 items-start justify-center">
+            {meetingEntryView === 'shortcut' ? (
+              <div className="w-full max-w-4xl rounded-2xl border border-meeting-border bg-meeting-surface/80 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-7">
+                <div className="inline-flex items-center gap-2 rounded-full border border-meeting-accent/30 bg-meeting-accent/10 px-2.5 py-1 text-[11px] text-meeting-accent">
+                  <Video className="w-3.5 h-3.5" />
+                  {t('meeting.title')}
                 </div>
-              </div>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setShowAiSettings(true)}
-                  className="w-full bg-meeting-bg border border-meeting-border hover:bg-meeting-border text-slate-300 hover:text-white py-3 rounded-xl
-                             transition-colors flex items-center justify-center gap-2"
-                >
-                  <SlidersHorizontal className="w-4 h-4" />
-                  {t('auth.aiSettings')}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={logout}
-                className="w-full bg-meeting-bg border border-meeting-border hover:bg-meeting-border text-slate-300 hover:text-white py-3 rounded-xl
-                           transition-colors flex items-center justify-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                {t('auth.logout')}
-              </button>
-            </div>
-          )}
-        </div>
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{user.name}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">{t('meeting.subtitle')}</p>
 
-        <div className="bg-meeting-surface rounded-2xl shadow-2xl border border-meeting-border p-8">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-white font-semibold text-lg">{t('meeting.title')}</h2>
-              <p className="text-slate-400 text-sm mt-1">{t('meeting.subtitle')}</p>
-            </div>
-            {!user && (
-              <span className="text-xs text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-3 py-1">
-                {t('meeting.needLogin')}
-              </span>
-            )}
-          </div>
+                <div className="mt-5 grid gap-2.5 md:grid-cols-3">
+                  {meetingHighlights.map((item) => (
+                    <button
+                      key={item.title}
+                      type="button"
+                      onClick={item.onClick}
+                      className="rounded-xl border border-meeting-border bg-meeting-bg/70 px-4 py-4 text-left text-xs text-slate-300 transition-colors hover:border-slate-500 hover:text-white sm:text-sm"
+                    >
+                      <div className="mb-2 inline-flex rounded-lg bg-meeting-accent/10 p-2 text-meeting-accent">
+                        {item.icon}
+                      </div>
+                      <p className="font-medium text-white">{item.title}</p>
+                      <p className="mt-1 text-[11px] text-slate-500">{item.detail}</p>
+                    </button>
+                  ))}
+                </div>
 
-          <div className="flex gap-2 mb-6 bg-meeting-bg rounded-xl p-1">
-            <button
-              type="button"
-              onClick={() => setMode('create')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === 'create'
-                  ? 'bg-meeting-accent text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Plus className="w-4 h-4" />
-              {t('meeting.create')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('join')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-                mode === 'join'
-                  ? 'bg-meeting-accent text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <LogIn className="w-4 h-4" />
-              {t('meeting.join')}
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.displayName')}</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t('meeting.displayNamePlaceholder')}
-                maxLength={50}
-                disabled={!user}
-                className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
-                           focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
-              />
-            </div>
-
-            {mode === 'create' ? (
-              <div>
-                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.meetingTitle')}</label>
-                <input
-                  type="text"
-                  value={roomTitle}
-                  onChange={(e) => setRoomTitle(e.target.value)}
-                  placeholder={t('meeting.meetingTitlePlaceholder')}
-                  maxLength={80}
-                  disabled={!user}
-                  className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
-                             focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
-                />
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {featureBadges.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-1.5 rounded-full border border-meeting-border bg-meeting-bg/70 px-2.5 py-1 text-[11px] text-slate-400"
+                    >
+                      {item.icon}
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div>
-                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.roomId')}</label>
-                <input
-                  type="text"
-                  value={roomInput}
-                  onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
-                  placeholder={t('meeting.roomIdPlaceholder')}
-                  maxLength={32}
-                  disabled={!user}
-                  className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
-                             focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors tracking-wider"
-                />
-              </div>
-            )}
+              <div className="w-full max-w-xl rounded-2xl border border-meeting-border bg-meeting-surface/90 p-5 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-6">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-meeting-accent/30 bg-meeting-accent/10 px-2.5 py-1 text-[11px] text-meeting-accent">
+                      {mode === 'create' ? <Plus className="w-3.5 h-3.5" /> : <LogIn className="w-3.5 h-3.5" />}
+                      {mode === 'create'
+                        ? meetingType === 'scheduled'
+                          ? t('meeting.scheduled')
+                          : t('meeting.create')
+                        : t('meeting.join')}
+                    </div>
+                    <h2 className="mt-2.5 text-lg font-semibold text-white sm:text-xl">
+                      {mode === 'create'
+                        ? meetingType === 'scheduled'
+                          ? t('meeting.scheduled')
+                          : t('meeting.create')
+                        : t('meeting.join')}
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-400">{t('meeting.subtitle')}</p>
+                  </div>
 
-            <div>
-              <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.passcode')}</label>
-              <input
-                type="password"
-                value={roomPasscode}
-                onChange={(e) => setRoomPasscode(e.target.value)}
-                placeholder={mode === 'create' ? t('meeting.passcodePlaceholderCreate') : t('meeting.passcodePlaceholderJoin')}
-                maxLength={32}
-                disabled={!user}
-                className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
-                           focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
-              />
-            </div>
-
-            {mode === 'create' && (
-              <div>
-                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.inviteEmails')}</label>
-                <textarea
-                  value={inviteEmailsInput}
-                  onChange={(e) => setInviteEmailsInput(e.target.value)}
-                  placeholder={t('meeting.inviteEmailsPlaceholder')}
-                  rows={3}
-                  disabled={!user}
-                  className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white placeholder-slate-500 disabled:opacity-50
-                             focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors resize-none text-sm"
-                />
-                <p className="mt-1 text-xs text-slate-500">{t('meeting.inviteEmailsHint')}</p>
-              </div>
-            )}
-            {mode === 'create' && (
-              <div>
-                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.meetingType')}</label>
-                <div className="flex gap-2 bg-meeting-bg rounded-xl p-1">
                   <button
                     type="button"
-                    onClick={() => setMeetingType('instant')}
-                    disabled={!user}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
-                      meetingType === 'instant' ? 'bg-meeting-accent text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
+                    onClick={handleBackToShortcuts}
+                    className="inline-flex items-center gap-2 rounded-lg border border-meeting-border px-2.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
                   >
-                    {t('meeting.instant')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMeetingType('scheduled')}
-                    disabled={!user}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
-                      meetingType === 'scheduled' ? 'bg-meeting-accent text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Calendar className="w-3.5 h-3.5" />
-                    {t('meeting.scheduled')}
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    {t('common.back')}
                   </button>
                 </div>
+
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-400">{t('meeting.displayName')}</label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder={t('meeting.displayNamePlaceholder')}
+                        maxLength={50}
+                        className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                      />
+                    </div>
+
+                    {mode === 'create' ? (
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-400">{t('meeting.passcode')}</label>
+                        <input
+                          type="password"
+                          value={roomPasscode}
+                          onChange={(e) => setRoomPasscode(e.target.value)}
+                          placeholder={t('meeting.passcodePlaceholderCreate')}
+                          maxLength={32}
+                          className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-400">{t('meeting.roomId')}</label>
+                        <input
+                          type="text"
+                          value={roomInput}
+                          onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+                          placeholder={t('meeting.roomIdPlaceholder')}
+                          maxLength={32}
+                          className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm tracking-wider text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                        />
+                      </div>
+                    )}
+
+                    {mode === 'create' ? (
+                      <div className="sm:col-span-2">
+                        <label className="mb-1 block text-xs text-slate-400">{t('meeting.meetingTitle')}</label>
+                        <input
+                          type="text"
+                          value={roomTitle}
+                          onChange={(e) => setRoomTitle(e.target.value)}
+                          placeholder={t('meeting.meetingTitlePlaceholder')}
+                          maxLength={80}
+                          className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-400">{t('meeting.passcode')}</label>
+                        <input
+                          type="password"
+                          value={roomPasscode}
+                          onChange={(e) => setRoomPasscode(e.target.value)}
+                          placeholder={t('meeting.passcodePlaceholderJoin')}
+                          maxLength={32}
+                          className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                        />
+                      </div>
+                    )}
+
+                    {mode === 'create' && meetingType === 'scheduled' && (
+                      <div className="sm:col-span-2">
+                        <label className="mb-1 block text-xs text-slate-400">{t('meeting.scheduledTime')}</label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledAt}
+                          onChange={(e) => setScheduledAt(e.target.value)}
+                          min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                          className="w-full rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">{t('meeting.scheduledTimeHint')}</p>
+                      </div>
+                    )}
+
+                    {mode === 'create' && (
+                      <div className="sm:col-span-2">
+                        <label className="mb-1 block text-xs text-slate-400">{t('meeting.inviteEmails')}</label>
+                        <textarea
+                          value={inviteEmailsInput}
+                          onChange={(e) => setInviteEmailsInput(e.target.value)}
+                          placeholder={t('meeting.inviteEmailsPlaceholder')}
+                          rows={2}
+                          className="w-full resize-none rounded-lg border border-meeting-border bg-meeting-bg px-3 py-2.5 text-sm text-white placeholder-slate-500 transition-colors focus:border-meeting-accent focus:outline-none focus:ring-1 focus:ring-meeting-accent"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-500">{t('meeting.inviteEmailsHint')}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {error && (
+                    <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-meeting-danger">
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isMeetingSubmitting}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-meeting-accent py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-600 disabled:opacity-50"
+                  >
+                    {isMeetingSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : mode === 'create' ? (
+                      <Plus className="h-4 w-4" />
+                    ) : (
+                      <LogIn className="h-4 w-4" />
+                    )}
+                    {mode === 'create' ? t('meeting.createBtn') : t('meeting.joinBtn')}
+                  </button>
+                </form>
               </div>
             )}
-
-            {mode === 'create' && meetingType === 'scheduled' && (
-              <div>
-                <label className="block text-sm text-slate-400 mb-1.5">{t('meeting.scheduledTime')}</label>
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-                  disabled={!user}
-                  className="w-full bg-meeting-bg border border-meeting-border rounded-lg px-4 py-3 text-white disabled:opacity-50
-                             focus:outline-none focus:border-meeting-accent focus:ring-1 focus:ring-meeting-accent transition-colors"
-                />
-                <p className="mt-1 text-xs text-slate-500">{t('meeting.scheduledTimeHint')}</p>
-              </div>
-            )}
-            {error && (
-              <p className="text-meeting-danger text-sm py-2 px-3 bg-red-500/10 rounded-lg border border-red-500/20">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={!user || isMeetingSubmitting}
-              className="w-full bg-meeting-accent hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-3 rounded-xl
-                         transition-colors shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
-            >
-              {isMeetingSubmitting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : mode === 'create' ? (
-                <Plus className="w-5 h-5" />
-              ) : (
-                <LogIn className="w-5 h-5" />
-              )}
-              {mode === 'create' ? t('meeting.createBtn') : t('meeting.joinBtn')}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Feature badges */}
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        {[
-          { icon: <Video className="w-4 h-4" />, label: t('meeting.features.hdVideo') },
-          { icon: <Users className="w-4 h-4" />, label: t('meeting.features.multiParty') },
-          { icon: <Sparkles className="w-4 h-4" />, label: t('meeting.features.aiMinutes') },
-        ].map((f) => (
-          <div
-            key={f.label}
-            className="flex items-center gap-1.5 bg-meeting-surface border border-meeting-border
-                       rounded-full px-3 py-1.5 text-xs text-slate-400"
-          >
-            {f.icon}
-            {f.label}
           </div>
-        ))}
+        )}
       </div>
 
       {/* Admin: AI Settings modal */}
@@ -621,6 +737,13 @@ export default function Home() {
             <AiSettingsPanel onClose={() => setShowAiSettings(false)} />
           </div>
         </div>
+      )}
+
+      {user && showDeviceSettings && (
+        <HomeDeviceSettingsModal
+          displayName={name.trim() || user.name}
+          onClose={() => setShowDeviceSettings(false)}
+        />
       )}
     </div>
   );

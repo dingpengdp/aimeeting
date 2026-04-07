@@ -232,4 +232,17 @@ export class RoomManager {
     }
     return null;
   }
+
+  findParticipantByRoomAndUser(roomId: string, userId: string): Participant | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    for (const participant of room.participants.values()) {
+      if (participant.userId === userId) return participant;
+    }
+    return null;
+  }
+
+  getAllRooms(): Map<string, Room> {
+    return this.rooms;
+  }
 }

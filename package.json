@@ -6,7 +6,9 @@
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:asr": "python3 backend/asr_server.py",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "build:client": "npm --prefix client run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

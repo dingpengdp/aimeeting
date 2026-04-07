@@ -3,6 +3,8 @@ import type { AuthResponse, AuthUser } from '../types';
 import { apiFetch } from '../services/api';
 import { clearStoredSession, getStoredToken, getStoredUser, persistSession } from '../services/session';
 import { disconnectSocket } from '../services/socket';
+import { getServerUrl } from '../lib/config';
+import { tauriInvoke } from '../lib/tauri';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -29,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!token) {
+      void tauriInvoke('agent_clear_credentials');
       setIsLoading(false);
       return;
     }
@@ -66,6 +69,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [token]);
 
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const serverUrl = getServerUrl();
+    if (!serverUrl) {
+      return;
+    }
+
+    void tauriInvoke('agent_set_credentials', { serverUrl, token });
+  }, [token]);
+
   const login = async (email: string, password: string) => {
     const session = await apiFetch<AuthResponse>('/api/auth/login', {
       method: 'POST',
@@ -87,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     clearStoredSession();
     disconnectSocket();
+    void tauriInvoke('agent_clear_credentials');
     setUser(null);
     setToken(null);
   };

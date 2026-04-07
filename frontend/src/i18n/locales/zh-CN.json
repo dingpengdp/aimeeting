@@ -83,6 +83,7 @@
     "remoteControl": "远程控制",
     "invite": "邀请",
     "security": "权限",
+    "devices": "设备",
     "aiConfig": "AI配置",
     "leave": "离开"
   },
@@ -148,7 +149,18 @@
     "requesting": "等待对方确认…",
     "noSharingPeers": "当前没有参会者在共享屏幕",
     "noSharingHint": "待对方开始屏幕共享后，可在此申请控制权限",
-    "rejected": "对方拒绝了远程控制申请"
+    "rejected": "对方拒绝了远程控制申请",
+    "agentActive": "客户端已连接",
+    "agentNone": "仅指针演示",
+    "confirmFullTitle": "完整远程控制",
+    "confirmFullDesc": "对方已安装并运行客户端，接受后将实际移动对方鼠标并可点击。对方须已同意。",
+    "confirmPointerTitle": "指针演示模式",
+    "confirmPointerDesc": "对方未安装客户端，仅可演示光标位置，不会实际操作对方鼠标。",
+    "requestModeFull": "完整控制（客户端已就绪，将实际操控鼠标）",
+    "requestModePointer": "指针演示（无客户端，仅展示光标）",
+    "modeFullActive": "完整控制模式（客户端活跃）",
+    "modePointerActive": "指针演示模式（无客户端）",
+    "wantsControl": "希望控制您的屏幕"
   },
   "security": {
     "title": "会议权限",
@@ -167,6 +179,20 @@
     "setHost": "设为主持人",
     "remove": "移除",
     "readOnly": "只读"
+  },
+  "devices": {
+    "title": "设备设置",
+    "setupTitle": "检查摄像头和麦克风",
+    "setupDescription": "入会前先确认要使用的摄像头和麦克风。",
+    "previewDescription": "预览区会使用当前设备选择，您现在可以切换，也可以入会后再调整。",
+    "camera": "摄像头",
+    "microphone": "麦克风",
+    "noneDetected": "未检测到设备",
+    "refresh": "刷新设备",
+    "preparing": "准备中…",
+    "continue": "进入会议",
+    "refreshFailed": "刷新设备失败",
+    "switchFailed": "切换设备失败"
   },
   "resetPassword": {
     "back": "返回首页",
@@ -291,6 +317,18 @@
     "locked": "已锁定",
     "remoteControlRequest": "<0>{{name}}</0> 请求远程控制您的屏幕",
     "remoteControlRequestSuffix": "请求远程控制您的屏幕",
+    "agentUnavailable": "桌面客户端当前不可用，本次会议将自动降级为仅指针演示模式。",
+    "mediaAudioOnly": "当前无法使用摄像头，已自动降级为仅麦克风入会。",
+    "mediaAudioOnlyPermission": "摄像头权限被阻止。请在 macOS 的“隐私与安全性 > 摄像头”中允许 AiMeeting，然后重新打开应用。",
+    "mediaAudioOnlyDeviceMissing": "未检测到可用摄像头，已自动降级为仅麦克风入会。",
+    "mediaVideoOnly": "当前无法使用麦克风，已自动降级为仅摄像头入会。",
+    "mediaVideoOnlyPermission": "麦克风权限被阻止。请在 macOS 的“隐私与安全性 > 麦克风”中允许 AiMeeting，然后重新打开应用。",
+    "mediaVideoOnlyDeviceMissing": "未检测到可用麦克风，已自动降级为仅摄像头入会。",
+    "mediaNone": "摄像头和麦克风当前都不可用，您已在无本地音视频的情况下进入会议。",
+    "mediaNonePermission": "摄像头和麦克风权限被阻止。请在 macOS 的“隐私与安全性”中允许 AiMeeting，然后重新打开应用。",
+    "mediaNoneDeviceMissing": "当前客户端未检测到可用的摄像头或麦克风设备。",
+    "requestModeFullNotice": "完整控制模式（将实际移动鼠标，需已安装客户端）",
+    "requestModePointerNotice": "指针演示模式（仅展示光标位置，不操作鼠标）",
     "accept": "接受",
     "reject": "拒绝",
     "kickedMessage": "您已被主持人移出会议",
@@ -304,5 +342,20 @@
     "zhCN": "简体中文",
     "zhTW": "繁體中文",
     "en": "English"
+  },
+  "common": {
+    "back": "返回",
+    "cancel": "取消",
+    "tools": "工具"
+  },
+  "serverSetup": {
+    "title": "连接到服务器",
+    "description": "请输入 AiMeeting 后端服务器地址，例如 http://192.168.1.100:3001",
+    "urlLabel": "服务器地址",
+    "urlPlaceholder": "http://192.168.1.100:3001",
+    "connectButton": "连接",
+    "connecting": "正在连接…",
+    "errorInvalidUrl": "请输入有效的 URL（以 http:// 或 https:// 开头）",
+    "errorUnreachable": "无法连接到服务器，请检查地址和网络"
   }
 }

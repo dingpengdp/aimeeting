@@ -83,6 +83,7 @@
     "remoteControl": "Remote Control",
     "invite": "Invite",
     "security": "Security",
+    "devices": "Devices",
     "aiConfig": "AI Config",
     "leave": "Leave"
   },
@@ -148,7 +149,18 @@
     "requesting": "Waiting for confirmation…",
     "noSharingPeers": "Nobody is sharing their screen",
     "noSharingHint": "Once a participant starts screen sharing, you can request control here",
-    "rejected": "Remote control request was rejected"
+    "rejected": "Remote control request was rejected",
+    "agentActive": "Agent connected",
+    "agentNone": "Pointer only",
+    "confirmFullTitle": "Full Remote Control",
+    "confirmFullDesc": "The remote user has the agent installed and running. Once accepted, your mouse movements and clicks will be executed on their machine.",
+    "confirmPointerTitle": "Pointer Display Mode",
+    "confirmPointerDesc": "The remote user has not installed the agent. Your cursor will be visible to everyone, but no real mouse control will occur.",
+    "requestModeFull": "Full control (agent ready — real mouse control)",
+    "requestModePointer": "Pointer display (no agent — cursor only)",
+    "modeFullActive": "Full control mode (agent active)",
+    "modePointerActive": "Pointer display mode (no agent)",
+    "wantsControl": "wants to control your screen"
   },
   "security": {
     "title": "Meeting Security",
@@ -167,6 +179,20 @@
     "setHost": "Make Host",
     "remove": "Remove",
     "readOnly": "View Only"
+  },
+  "devices": {
+    "title": "Devices",
+    "setupTitle": "Check Camera and Microphone",
+    "setupDescription": "Choose the camera and microphone you want to use before joining the meeting.",
+    "previewDescription": "This preview uses your current device selection. You can switch devices now or later during the meeting.",
+    "camera": "Camera",
+    "microphone": "Microphone",
+    "noneDetected": "No device detected",
+    "refresh": "Refresh Devices",
+    "preparing": "Preparing…",
+    "continue": "Join Meeting",
+    "refreshFailed": "Failed to refresh devices",
+    "switchFailed": "Failed to switch device"
   },
   "resetPassword": {
     "back": "Back to Home",
@@ -291,6 +317,18 @@
     "locked": "Locked",
     "remoteControlRequest": "<0>{{name}}</0> is requesting remote control of your screen",
     "remoteControlRequestSuffix": "is requesting remote control of your screen",
+    "agentUnavailable": "Desktop agent is unavailable for this meeting. Remote control falls back to pointer-only mode.",
+    "mediaAudioOnly": "Camera is unavailable. You joined with microphone only.",
+    "mediaAudioOnlyPermission": "Camera access is blocked. Allow AiMeeting in macOS Privacy & Security > Camera, then reopen the app.",
+    "mediaAudioOnlyDeviceMissing": "No camera device was found. You joined with microphone only.",
+    "mediaVideoOnly": "Microphone is unavailable. You joined with camera only.",
+    "mediaVideoOnlyPermission": "Microphone access is blocked. Allow AiMeeting in macOS Privacy & Security > Microphone, then reopen the app.",
+    "mediaVideoOnlyDeviceMissing": "No microphone device was found. You joined with camera only.",
+    "mediaNone": "Camera and microphone are unavailable. You joined the meeting without local media.",
+    "mediaNonePermission": "Camera and microphone access are blocked. Allow AiMeeting in macOS Privacy & Security, then reopen the app.",
+    "mediaNoneDeviceMissing": "No usable camera or microphone device was found on this client.",
+    "requestModeFullNotice": "Full control mode (will actually move the mouse — agent installed)",
+    "requestModePointerNotice": "Pointer display mode only (cursor shown, no real mouse control)",
     "accept": "Accept",
     "reject": "Decline",
     "kickedMessage": "You have been removed from the meeting by the host",
@@ -304,5 +342,20 @@
     "zhCN": "简体中文",
     "zhTW": "繁體中文",
     "en": "English"
+  },
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "tools": "Tools"
+  },
+  "serverSetup": {
+    "title": "Connect to Server",
+    "description": "Enter your AiMeeting backend server address, e.g. http://192.168.1.100:3001",
+    "urlLabel": "Server URL",
+    "urlPlaceholder": "http://192.168.1.100:3001",
+    "connectButton": "Connect",
+    "connecting": "Connecting…",
+    "errorInvalidUrl": "Please enter a valid URL starting with http:// or https://",
+    "errorUnreachable": "Cannot reach the server. Check the address and your network."
   }
 }

@@ -1,9 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { getStoredToken } from './session';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string | undefined;
-// In dev, Vite proxies /socket.io to localhost:3001 — so we can use same origin.
-const url = BACKEND_URL ?? '';
+import { getServerUrl } from '../lib/config';
 
 let socket: Socket | null = null;
 let socketToken: string | null = null;
@@ -14,7 +11,7 @@ export function getSocket(): Socket {
   if (!socket || socketToken !== currentToken) {
     socket?.disconnect();
     socketToken = currentToken;
-    socket = io(url, {
+    socket = io(getServerUrl(), {
       transports: ['websocket', 'polling'],
       timeout: 10000,
       reconnectionAttempts: 5,

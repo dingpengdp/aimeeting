@@ -1,10 +1,10 @@
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  MessageSquare, Circle, Sparkles, MousePointer2, PhoneOff, Shield, UserPlus, SlidersHorizontal,
+  MessageSquare, Circle, Sparkles, MousePointer2, PhoneOff, Shield, UserPlus, SlidersHorizontal, Settings2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-type PanelKey = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | 'ai-settings' | null;
+type PanelKey = 'chat' | 'recording' | 'minutes' | 'remote' | 'invite' | 'security' | 'devices' | 'ai-settings' | null;
 
 interface ControlsProps {
   isAudioEnabled: boolean;
@@ -22,6 +22,7 @@ interface ControlsProps {
   onToggleRemoteControl: () => void;
   onToggleInvite: () => void;
   onToggleSecurity: () => void;
+  onToggleDevices: () => void;
   onToggleAiSettings: () => void;
   isAdmin?: boolean;
   onLeave: () => void;
@@ -80,6 +81,7 @@ export default function Controls({
   onToggleRemoteControl,
   onToggleInvite,
   onToggleSecurity,
+  onToggleDevices,
   onToggleAiSettings,
   isAdmin = false,
   onLeave,
@@ -101,6 +103,11 @@ export default function Controls({
         {/* Screen share */}
         <ControlBtn onClick={onToggleScreenShare} active={isScreenSharing} label={isScreenSharing ? t('controls.stopShare') : t('controls.screenShare')}>
           {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+        </ControlBtn>
+
+        {/* Devices */}
+        <ControlBtn onClick={onToggleDevices} active={activePanelKey === 'devices'} label={t('controls.devices')}>
+          <Settings2 className="w-5 h-5" />
         </ControlBtn>
 
         <div className="w-px h-8 bg-meeting-border mx-1" />

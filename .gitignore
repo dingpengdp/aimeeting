@@ -7,3 +7,11 @@ uploads/
 .env.local
 coverage/
 backend/data/
+.trae/
+.vscode/
+.github/
+.agents/
+.agent/
+_bmad/
+_bmad-output/
+client/src-tauri/target/

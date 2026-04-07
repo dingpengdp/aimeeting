@@ -1,16 +1,18 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSocket } from '../services/socket';
-import type { DataChannelMessage, RemoteControlState, RemotePointer } from '../types';
+import type { DataChannelMessage, PeerData, RemoteControlState, RemotePointer } from '../types';
 
 interface UseRemoteControlOptions {
   localParticipantId: string;
   localName: string;
+  peers: Map<string, PeerData>;
   sendDataMessage: (targetId: string | 'all', msg: DataChannelMessage) => void;
 }
 
 export function useRemoteControl({
   localParticipantId,
   localName,
+  peers,
   sendDataMessage,
 }: UseRemoteControlOptions) {
   const [rcState, setRcState] = useState<RemoteControlState>({
@@ -24,22 +26,57 @@ export function useRemoteControl({
   });
 
   const pointerTimeoutRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const lastRemoteInputAtRef = useRef(0);
 
   const updateRc = useCallback((partial: Partial<RemoteControlState>) => {
     setRcState((prev) => ({ ...prev, ...partial }));
   }, []);
 
+  const clearPointerTimers = useCallback(() => {
+    pointerTimeoutRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+    pointerTimeoutRef.current.clear();
+  }, []);
+
+  useEffect(() => clearPointerTimers, [clearPointerTimers]);
+
+  const clampCoordinate = (value: number) => Math.max(0, Math.min(1, value));
+
+  const emitRemoteInput = useCallback(
+    (targetId: string, action: 'move' | 'click' | 'rightclick', x: number, y: number) => {
+      const targetPeer = peers.get(targetId);
+      if (!targetPeer?.agentEnabled) {
+        return;
+      }
+
+      getSocket().emit('remote-input', {
+        targetId,
+        action,
+        x: clampCoordinate(x),
+        y: clampCoordinate(y),
+      });
+    },
+    [peers]
+  );
+
   // ── Request control (controller→host) ─────────────────────────────────────
   const requestControl = useCallback(
     (targetId: string) => {
+      const targetPeer = peers.get(targetId);
+      if (!targetPeer || targetId === localParticipantId) {
+        return;
+      }
+
       const socket = getSocket();
+      const agentMode = targetPeer?.agentEnabled ?? false;
+      updateRc({ lastRejectedId: null });
       socket.emit('remote-control-request', {
         targetId,
         fromId: localParticipantId,
         fromName: localName,
+        agentMode,
       });
     },
-    [localParticipantId, localName]
+    [localParticipantId, localName, peers]
   );
 
   // ── Respond to control request (host) ─────────────────────────────────────
@@ -71,6 +108,7 @@ export function useRemoteControl({
     (targetId: string) => {
       const socket = getSocket();
       socket.emit('remote-control-end', { targetId, fromId: localParticipantId });
+      clearPointerTimers();
       updateRc({
         isControlling: false,
         controllerId: null,
@@ -84,22 +122,36 @@ export function useRemoteControl({
   // ── Send pointer position (controller→all via data channel) ──────────────
   const sendPointerMove = useCallback(
     (targetId: string, x: number, y: number) => {
+      const nextX = clampCoordinate(x);
+      const nextY = clampCoordinate(y);
+
       sendDataMessage('all', {
         type: 'remote-pointer',
-        payload: { participantId: localParticipantId, targetId, name: localName, x, y, clicking: false },
+        payload: { participantId: localParticipantId, targetId, name: localName, x: nextX, y: nextY, clicking: false },
       });
+
+      const now = Date.now();
+      if (now - lastRemoteInputAtRef.current >= 33) {
+        lastRemoteInputAtRef.current = now;
+        emitRemoteInput(targetId, 'move', nextX, nextY);
+      }
     },
-    [localParticipantId, localName, sendDataMessage]
+    [emitRemoteInput, localParticipantId, localName, sendDataMessage]
   );
 
   const sendPointerClick = useCallback(
     (targetId: string, x: number, y: number) => {
+      const nextX = clampCoordinate(x);
+      const nextY = clampCoordinate(y);
+
       sendDataMessage('all', {
         type: 'remote-click',
-        payload: { participantId: localParticipantId, targetId, name: localName, x, y, clicking: true },
+        payload: { participantId: localParticipantId, targetId, name: localName, x: nextX, y: nextY, clicking: true },
       });
+
+      emitRemoteInput(targetId, 'click', nextX, nextY);
     },
-    [localParticipantId, localName, sendDataMessage]
+    [emitRemoteInput, localParticipantId, localName, sendDataMessage]
   );
 
   // ── Handle incoming data-channel messages ─────────────────────────────────
@@ -132,8 +184,8 @@ export function useRemoteControl({
 
   // ── Socket event handlers for RC signaling ────────────────────────────────
   const handleRemoteControlRequest = useCallback(
-    ({ fromId, fromName }: { fromId: string; fromName: string }) => {
-      updateRc({ pendingRequest: { fromId, fromName } });
+    ({ fromId, fromName, agentMode }: { fromId: string; fromName: string; agentMode?: boolean }) => {
+      updateRc({ pendingRequest: { fromId, fromName, agentMode: agentMode ?? false } });
     },
     [updateRc]
   );
@@ -141,15 +193,21 @@ export function useRemoteControl({
   const handleRemoteControlResponse = useCallback(
     ({ fromId, accepted }: { fromId: string; accepted: boolean }) => {
       if (accepted) {
-        updateRc({ isControlling: true, controllerId: fromId, lastRejectedId: null });
+        updateRc({
+          isControlling: true,
+          controllerId: fromId,
+          controllerName: peers.get(fromId)?.name ?? null,
+          lastRejectedId: null,
+        });
       } else {
         updateRc({ isControlling: false, lastRejectedId: fromId });
       }
     },
-    [updateRc]
+    [peers, updateRc]
   );
 
   const handleRemoteControlEnd = useCallback(() => {
+    clearPointerTimers();
     updateRc({
       isControlling: false,
       isBeingControlled: false,
@@ -157,7 +215,7 @@ export function useRemoteControl({
       controllerName: null,
       pointers: [],
     });
-  }, [updateRc]);
+  }, [clearPointerTimers, updateRc]);
 
   return {
     rcState,

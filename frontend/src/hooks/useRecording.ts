@@ -3,6 +3,7 @@ import type { RecordingState } from '../types';
 import { apiFetch } from '../services/api';
 import { getSocket } from '../services/socket';
 import { getStoredToken } from '../services/session';
+import { getServerUrl } from '../lib/config';
 
 function pickMimeType(): string {
   const candidates = [
@@ -38,6 +39,8 @@ export function useRecording({ localStream, screenStream, remoteStreams, remoteP
   const startTimeRef = useRef<number>(0);
   const animFrameRef = useRef<number | null>(null);
   const videoElemsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const mixedStreamRef = useRef<MediaStream | null>(null);
+  const isStoppingRef = useRef(false);
 
   // Keep latest stream refs so the RAF loop always uses current values
   const localStreamRef = useRef(localStream);
@@ -111,6 +114,18 @@ export function useRecording({ localStream, screenStream, remoteStreams, remoteP
     videoElemsRef.current.forEach((el) => { el.srcObject = null; });
     videoElemsRef.current.clear();
   }, []);
+
+  const cleanupRecordingResources = useCallback(() => {
+    mixedStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mixedStreamRef.current = null;
+    cleanupCanvas();
+    audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [cleanupCanvas]);
 
   const buildMixedStream = useCallback((): MediaStream => {
     const W = 1280;
@@ -238,9 +253,10 @@ export function useRecording({ localStream, screenStream, remoteStreams, remoteP
   }, [localStream, screenStream, remoteStreams, remotePresenterStream, getVideoElem]);
 
   const startRecording = useCallback(() => {
-    if (state.isRecording) return;
+    if (state.isRecording || isStoppingRef.current) return;
 
     const mixedStream = buildMixedStream();
+    mixedStreamRef.current = mixedStream;
     const mimeType = pickMimeType();
     const options: MediaRecorderOptions = mimeType ? { mimeType } : {};
     const socket = getSocket();
@@ -259,16 +275,26 @@ export function useRecording({ localStream, screenStream, remoteStreams, remoteP
       };
 
       recorder.onstop = () => {
+        isStoppingRef.current = false;
         socket.emit('recording-stop');
-        cleanupCanvas();
-        audioCtxRef.current?.close();
-        audioCtxRef.current = null;
-        if (timerRef.current) clearInterval(timerRef.current);
+        cleanupRecordingResources();
         update({ isRecording: false, isTranscribing: true });
+      };
+
+      recorder.onerror = () => {
+        isStoppingRef.current = false;
+        cleanupRecordingResources();
+        update({
+          isRecording: false,
+          isTranscribing: false,
+          isGeneratingMinutes: false,
+          error: '录制过程中发生错误，请重试。',
+        });
       };
 
       recorder.start(1000);
       startTimeRef.current = Date.now();
+      isStoppingRef.current = false;
 
       timerRef.current = setInterval(() => {
         update({ duration: Math.floor((Date.now() - startTimeRef.current) / 1000) });
@@ -285,22 +311,27 @@ export function useRecording({ localStream, screenStream, remoteStreams, remoteP
         error: null,
       });
     } catch (err) {
-      cleanupCanvas();
+      cleanupRecordingResources();
+      isStoppingRef.current = false;
       update({ error: `录制启动失败: ${err instanceof Error ? err.message : String(err)}` });
     }
-  }, [state.isRecording, buildMixedStream, cleanupCanvas, update]);
+  }, [state.isRecording, buildMixedStream, cleanupRecordingResources, update]);
 
   const stopRecording = useCallback(() => {
-    recorderRef.current?.stop();
-    if (timerRef.current) clearInterval(timerRef.current);
+    const recorder = recorderRef.current;
+    if (!recorder || recorder.state === 'inactive' || isStoppingRef.current) {
+      return;
+    }
+
+    isStoppingRef.current = true;
+    recorder.stop();
   }, []);
 
   const downloadRecording = useCallback(async () => {
     if (!state.serverFileId) return;
     try {
       const token = getStoredToken();
-      const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? '';
-      const res = await fetch(`${BACKEND_URL}/api/recordings/${encodeURIComponent(state.serverFileId)}/download`, {
+      const res = await fetch(`${getServerUrl()}/api/recordings/${encodeURIComponent(state.serverFileId)}/download`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) return;
@@ -338,11 +369,9 @@ export function useRecording({ localStream, screenStream, remoteStreams, remoteP
   useEffect(() => {
     return () => {
       if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop();
-      cleanupCanvas();
-      audioCtxRef.current?.close();
-      if (timerRef.current) clearInterval(timerRef.current);
+      cleanupRecordingResources();
     };
-  }, [cleanupCanvas]);
+  }, [cleanupRecordingResources]);
 
   const formatDuration = (seconds: number): string => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
