@@ -69,15 +69,28 @@ _ai_cfg = _load_ai_config()
 MODEL_REPO = os.environ.get("ASR_MODEL", _ai_cfg.get("asrModel", "mlx-community/whisper-small-mlx"))
 PORT = int(os.environ.get("ASR_PORT", "8000"))
 
-# ── HuggingFace 认证（用于下载需要登录的模型，如 whisper-large-v3）──
-_hf_token = os.environ.get("HF_TOKEN") or _ai_cfg.get("hfToken", "")
-if _hf_token:
+_hf_token_in_use = None
+
+def _resolve_hf_token() -> str:
+    cfg = _load_ai_config()
+    return os.environ.get("HF_TOKEN") or cfg.get("hfToken", "")
+
+def _ensure_hf_auth() -> None:
+    global _hf_token_in_use
+
+    hf_token = _resolve_hf_token()
+    if not hf_token or hf_token == _hf_token_in_use:
+        return
+
     try:
         from huggingface_hub import login as _hf_login
-        _hf_login(token=_hf_token, add_to_git_credential=False)
+        _hf_login(token=hf_token, add_to_git_credential=False)
+        _hf_token_in_use = hf_token
         logger.info("HuggingFace authenticated successfully")
     except Exception as _e:
         logger.warning(f"HuggingFace login failed: {_e}")
+
+_ensure_hf_auth()
 
 try:
     import mlx_whisper
@@ -132,6 +145,7 @@ async def transcribe(
         tmp_path = tmp.name
 
     try:
+        _ensure_hf_auth()
         decode_options: dict = {
             "path_or_hf_repo": MODEL_REPO,
             "verbose": False,
@@ -186,6 +200,7 @@ async def download_model_sse(repo_id: str):
         executor = ThreadPoolExecutor(max_workers=2)
         loop = asyncio.get_event_loop()
         try:
+            _ensure_hf_auth()
             from huggingface_hub import list_repo_files, hf_hub_download
 
             yield f"data: {json.dumps({'type': 'listing', 'repo': repo_id})}\n\n"

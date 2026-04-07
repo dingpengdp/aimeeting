@@ -29,6 +29,7 @@ import { RoomManager } from './rooms';
 import { setupSocketHandlers } from './socketHandlers';
 import { aiService } from './aiService';
 import { aiConfigService } from './aiConfigService';
+import { smtpConfigService } from './smtpConfigService';
 import { AuthService, attachSocketUser, requireAuth, requireAdminAuth, type AuthenticatedRequest } from './auth';
 import { getClientConfig } from './clientConfig';
 import { createRateLimiter } from './rateLimit';
@@ -262,8 +263,8 @@ app.put('/api/config/ai', requireAdmin, (req: Request, res: Response) => {
 });
 
 app.post('/api/config/ai/test', requireAdmin, async (req: Request, res: Response) => {
-  const { type, baseUrl, model, apiKey, token } = req.body as {
-    type?: string; baseUrl?: string; model?: string; apiKey?: string; token?: string;
+  const { type, provider, baseUrl, model, apiKey, token } = req.body as {
+    type?: string; provider?: string; baseUrl?: string; model?: string; apiKey?: string; token?: string;
   };
   if (type === 'hf') {
     const result = await aiService.testHfToken(token ?? '');
@@ -272,20 +273,51 @@ app.post('/api/config/ai/test', requireAdmin, async (req: Request, res: Response
   if (type !== 'asr' && type !== 'llm') {
     return res.status(400).json({ ok: false, message: '参数错误：type 须为 asr、llm 或 hf' });
   }
-  const result = await aiService.testConnection(type, { baseUrl, model, apiKey });
+  const result = await aiService.testConnection(type, { provider: provider as never, baseUrl, model, apiKey });
+  res.json(result);
+});
+
+// ── SMTP Config ───────────────────────────────────────────────────────────
+app.get('/api/config/smtp', requireAdmin, (_req, res) => {
+  res.json(smtpConfigService.getPublicConfig());
+});
+
+app.put('/api/config/smtp', requireAdmin, (req: Request, res: Response) => {
+  try {
+    smtpConfigService.updateConfig(req.body);
+    emailService.resetTransporter();
+    res.json(smtpConfigService.getPublicConfig());
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : '保存 SMTP 配置失败' });
+  }
+});
+
+app.post('/api/config/smtp/test', requireAdmin, async (req: Request, res: Response) => {
+  const result = await emailService.testConnection(req.body);
   res.json(result);
 });
 
 // ── ASR model cache check & download proxy ────────────────────────────────
-const getAsrBase = () =>
-  (aiConfigService.getConfig().asrBaseUrl || 'http://localhost:8000').replace(/\/+$/, '');
+const getLocalAsrBase = (requestedBaseUrl?: string) => {
+  if (requestedBaseUrl?.trim()) {
+    return requestedBaseUrl.trim().replace(/\/+$/, '');
+  }
+
+  const config = aiConfigService.getConfig();
+  if (config.asrProvider !== 'local') {
+    return null;
+  }
+  return (config.asrBaseUrl.trim() || 'http://localhost:8000').replace(/\/+$/, '');
+};
 
 app.get('/api/asr/check', requireAdmin, async (req: Request, res: Response) => {
-  const { model } = req.query as { model?: string };
+  const { model, baseUrl } = req.query as { model?: string; baseUrl?: string };
   if (!model) return res.status(400).json({ error: 'model required' });
+  const asrBase = getLocalAsrBase(baseUrl);
+  if (!asrBase) return res.status(400).json({ error: 'local ASR provider is not enabled' });
   try {
     const r = await fetch(
-      `${getAsrBase()}/v1/check?repo_id=${encodeURIComponent(model)}`,
+      `${asrBase}/v1/check?repo_id=${encodeURIComponent(model)}`,
       { signal: AbortSignal.timeout(6000) },
     );
     const data = await r.json();
@@ -296,8 +328,10 @@ app.get('/api/asr/check', requireAdmin, async (req: Request, res: Response) => {
 });
 
 app.get('/api/asr/download', requireAdmin, async (req: Request, res: Response) => {
-  const { model } = req.query as { model?: string };
+  const { model, baseUrl } = req.query as { model?: string; baseUrl?: string };
   if (!model) return res.status(400).json({ error: 'model required' });
+  const asrBase = getLocalAsrBase(baseUrl);
+  if (!asrBase) return res.status(400).json({ error: 'local ASR provider is not enabled' });
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -307,7 +341,7 @@ app.get('/api/asr/download', requireAdmin, async (req: Request, res: Response) =
 
   try {
     const upstream = await fetch(
-      `${getAsrBase()}/v1/download?repo_id=${encodeURIComponent(model)}`,
+      `${asrBase}/v1/download?repo_id=${encodeURIComponent(model)}`,
       { signal: AbortSignal.timeout(600_000) },
     );
     if (!upstream.body) {

@@ -1,4 +1,5 @@
 import nodemailer, { type Transporter } from 'nodemailer';
+import { smtpConfigService, type SmtpConfig, type SmtpConfigPublic } from './smtpConfigService';
 
 interface PasswordResetEmailInput {
   email: string;
@@ -25,6 +26,8 @@ function parsePort(value?: string): number {
 function parseBoolean(value?: string): boolean {
   return value?.trim().toLowerCase() === 'true';
 }
+
+const MASKED = '***set***';
 
 function fmtIcsDate(d: Date): string {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -71,9 +74,16 @@ function formatChineseDateTime(isoString: string): string {
 
 export class EmailService {
   private transporter: Transporter | null = null;
+  private transporterSignature: string | null = null;
+
+  resetTransporter(): void {
+    this.transporter = null;
+    this.transporterSignature = null;
+  }
 
   isConfigured(): boolean {
-    return Boolean(process.env.SMTP_HOST?.trim() && process.env.SMTP_FROM?.trim());
+    const config = smtpConfigService.getConfig();
+    return Boolean(config.host.trim() && config.from.trim());
   }
 
   async sendPasswordResetEmail({ email, name, resetLink, expiresMinutes }: PasswordResetEmailInput): Promise<boolean> {
@@ -82,7 +92,7 @@ export class EmailService {
     }
 
     const transporter = this.getTransporter();
-    const from = process.env.SMTP_FROM?.trim();
+    const from = smtpConfigService.getConfig().from.trim();
 
     await transporter.sendMail({
       from,
@@ -129,7 +139,7 @@ export class EmailService {
     }
 
     const transporter = this.getTransporter();
-    const from = process.env.SMTP_FROM?.trim();
+    const from = smtpConfigService.getConfig().from.trim();
     const isScheduled = Boolean(scheduledAt);
     const timeLabel = scheduledAt ? formatChineseDateTime(scheduledAt) : '';
 
@@ -193,26 +203,77 @@ export class EmailService {
   }
 
   private getTransporter(): Transporter {
-    if (this.transporter) {
+    const config = smtpConfigService.getConfig();
+    const signature = JSON.stringify(config);
+
+    if (this.transporter && this.transporterSignature === signature) {
       return this.transporter;
     }
 
-    const host = process.env.SMTP_HOST?.trim();
-    if (!host) {
+    if (!config.host.trim()) {
       throw new Error('SMTP_NOT_CONFIGURED');
     }
 
-    const user = process.env.SMTP_USER?.trim();
-    const pass = process.env.SMTP_PASS?.trim();
-
-    this.transporter = nodemailer.createTransport({
-      host,
-      port: parsePort(process.env.SMTP_PORT),
-      secure: parseBoolean(process.env.SMTP_SECURE),
-      auth: user ? { user, pass: pass ?? '' } : undefined,
-    });
+    this.transporter = this.createTransporter(config);
+    this.transporterSignature = signature;
 
     return this.transporter;
+  }
+
+  async testConnection(patch: Partial<SmtpConfigPublic>): Promise<{ ok: boolean; message: string }> {
+    const stored = smtpConfigService.getConfig();
+    const resolved = this.resolveConfigPatch(patch, stored);
+
+    if (!resolved.host.trim()) {
+      return { ok: false, message: '未配置 SMTP Host' };
+    }
+
+    if (!resolved.from.trim()) {
+      return { ok: false, message: '未配置发件人地址（SMTP From）' };
+    }
+
+    const start = Date.now();
+
+    try {
+      const transporter = this.createTransporter(resolved);
+      await transporter.verify();
+      return { ok: true, message: `SMTP 连接成功（${Date.now() - start}ms）` };
+    } catch (error: unknown) {
+      const root = (error as { cause?: Error }).cause ?? (error instanceof Error ? error : null);
+      const message = root?.message ?? (error instanceof Error ? error.message : 'SMTP 连接失败');
+
+      if (message.includes('ECONNREFUSED')) return { ok: false, message: 'SMTP 连接被拒绝，请检查 Host、端口或防火墙设置' };
+      if (message.includes('ETIMEDOUT') || message.includes('Timeout')) return { ok: false, message: 'SMTP 连接超时，请检查网络或服务器状态' };
+      if (message.includes('ENOTFOUND') || message.includes('EAI_AGAIN')) return { ok: false, message: 'SMTP 域名解析失败，请检查服务器地址' };
+      if (message.includes('Invalid login') || message.includes('authentication') || message.includes('AUTH')) {
+        return { ok: false, message: 'SMTP 认证失败，请检查用户名、密码或安全设置' };
+      }
+
+      return { ok: false, message };
+    }
+  }
+
+  private resolveConfigPatch(patch: Partial<SmtpConfigPublic>, stored: SmtpConfig): SmtpConfig {
+    return {
+      host: patch.host ?? stored.host,
+      port: patch.port ?? stored.port,
+      secure: typeof patch.secure === 'boolean' ? patch.secure : stored.secure,
+      from: patch.from ?? stored.from,
+      user: patch.user ?? stored.user,
+      pass: patch.pass === MASKED ? stored.pass : (patch.pass ?? stored.pass),
+    };
+  }
+
+  private createTransporter(config: SmtpConfig): Transporter {
+    const user = config.user.trim();
+    const pass = config.pass.trim();
+
+    return nodemailer.createTransport({
+      host: config.host.trim(),
+      port: parsePort(config.port),
+      secure: config.secure,
+      auth: user ? { user, pass } : undefined,
+    });
   }
 }
 

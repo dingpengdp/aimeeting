@@ -33,7 +33,10 @@ export interface MediaDevicePreferences {
   videoInputId: string | null;
 }
 
+export type AsrProvider = 'local' | 'openai' | 'nvidia';
+
 export interface AiServiceConfig {
+  asrProvider: AsrProvider;
   asrBaseUrl: string;
   asrModel: string;
   /** `'***set***'` when an API key is configured; `''` when not set. */
@@ -42,8 +45,19 @@ export interface AiServiceConfig {
   asrLanguage: string;
   llmBaseUrl: string;
   llmModel: string;
-  llmApiKey: string;  /** HuggingFace token for downloading gated models. Masked when set. */
-  hfToken: string;}
+  llmApiKey: string;
+  /** HuggingFace token for downloading gated models. Masked when set. */
+  hfToken: string;
+}
+
+export interface SmtpConfig {
+  host: string;
+  port: string;
+  secure: boolean;
+  from: string;
+  user: string;
+  pass: string;
+}
 
 export interface RoomInviteResponse {
   room: RoomSummary;

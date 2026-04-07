@@ -17,7 +17,45 @@ limitations under the License.
 import fs from 'fs';
 import path from 'path';
 
+export type AsrProvider = 'local' | 'openai' | 'nvidia';
+
+export const DEFAULT_LOCAL_ASR_URL = 'http://localhost:8000';
+export const DEFAULT_LOCAL_ASR_MODEL = 'mlx-community/whisper-small-mlx';
+export const DEFAULT_OPENAI_ASR_MODEL = 'whisper-1';
+export const DEFAULT_NVIDIA_ASR_URL = 'https://integrate.api.nvidia.com/v1';
+export const DEFAULT_NVIDIA_ASR_MODEL = 'nvidia/parakeet-ctc-1.1b';
+
+function isAsrProvider(value: unknown): value is AsrProvider {
+  return value === 'local' || value === 'openai' || value === 'nvidia';
+}
+
+export function normalizeAsrProvider(
+  provider: unknown,
+  fallback?: { asrBaseUrl?: string; asrModel?: string },
+): AsrProvider {
+  if (isAsrProvider(provider)) {
+    return provider;
+  }
+
+  const baseUrl = fallback?.asrBaseUrl?.trim() || '';
+  const model = fallback?.asrModel?.trim() || '';
+  if (baseUrl.includes('nvidia.com')) {
+    return 'nvidia';
+  }
+  if (baseUrl || model.startsWith('mlx-community/')) {
+    return 'local';
+  }
+  return 'openai';
+}
+
+export function defaultAsrModel(provider: AsrProvider): string {
+  if (provider === 'local') return DEFAULT_LOCAL_ASR_MODEL;
+  if (provider === 'nvidia') return DEFAULT_NVIDIA_ASR_MODEL;
+  return DEFAULT_OPENAI_ASR_MODEL;
+}
+
 export interface AiServiceConfig {
+  asrProvider: AsrProvider;
   asrBaseUrl: string;
   asrModel: string;
   asrApiKey: string;
@@ -31,6 +69,7 @@ export interface AiServiceConfig {
 
 /** Sent to the frontend — API keys are masked. */
 export interface AiServiceConfigPublic {
+  asrProvider: AsrProvider;
   asrBaseUrl: string;
   asrModel: string;
   /** `'***set***'` when a key has been configured; `''` otherwise. */
@@ -46,9 +85,16 @@ const CONFIG_PATH = path.join(__dirname, '../data/aiConfig.json');
 const MASKED = '***set***';
 
 function envDefaults(): AiServiceConfig {
+  const asrBaseUrl = process.env.ASR_BASE_URL ?? '';
+  const asrProvider = normalizeAsrProvider(process.env.ASR_PROVIDER, {
+    asrBaseUrl,
+    asrModel: process.env.ASR_MODEL ?? '',
+  });
+
   return {
-    asrBaseUrl: process.env.ASR_BASE_URL ?? '',
-    asrModel: process.env.ASR_MODEL ?? 'mlx-community/whisper-small-mlx',
+    asrProvider,
+    asrBaseUrl,
+    asrModel: process.env.ASR_MODEL ?? defaultAsrModel(asrProvider),
     asrApiKey: process.env.ASR_API_KEY ?? '',
     asrLanguage: process.env.ASR_LANGUAGE ?? '',
     llmBaseUrl: process.env.LLM_BASE_URL ?? '',
@@ -71,9 +117,14 @@ class AiConfigService {
       try {
         const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
         const stored = JSON.parse(raw) as Partial<AiServiceConfig>;
-        this.cache = {
+        const asrProvider = normalizeAsrProvider(stored.asrProvider, {
           asrBaseUrl: stored.asrBaseUrl ?? defaults.asrBaseUrl,
           asrModel: stored.asrModel ?? defaults.asrModel,
+        });
+        this.cache = {
+          asrProvider,
+          asrBaseUrl: stored.asrBaseUrl ?? defaults.asrBaseUrl,
+          asrModel: stored.asrModel ?? defaultAsrModel(asrProvider),
           asrApiKey: stored.asrApiKey ?? defaults.asrApiKey,
           asrLanguage: stored.asrLanguage ?? defaults.asrLanguage,
           llmBaseUrl: stored.llmBaseUrl ?? defaults.llmBaseUrl,
@@ -95,10 +146,15 @@ class AiConfigService {
    *  Fields whose value equals `MASKED` are kept unchanged. */
   updateConfig(patch: Partial<AiServiceConfigPublic>): AiServiceConfig {
     const current = this.getConfig();
-
-    const updated: AiServiceConfig = {
+    const asrProvider = normalizeAsrProvider(patch.asrProvider ?? current.asrProvider, {
       asrBaseUrl: patch.asrBaseUrl ?? current.asrBaseUrl,
       asrModel: patch.asrModel ?? current.asrModel,
+    });
+
+    const updated: AiServiceConfig = {
+      asrProvider,
+      asrBaseUrl: patch.asrBaseUrl ?? current.asrBaseUrl,
+      asrModel: patch.asrModel ?? current.asrModel ?? defaultAsrModel(asrProvider),
       asrApiKey: patch.asrApiKey === MASKED ? current.asrApiKey : (patch.asrApiKey ?? current.asrApiKey),
       asrLanguage: patch.asrLanguage ?? current.asrLanguage,
       llmBaseUrl: patch.llmBaseUrl ?? current.llmBaseUrl,
@@ -119,6 +175,7 @@ class AiConfigService {
   getPublicConfig(): AiServiceConfigPublic {
     const cfg = this.getConfig();
     return {
+      asrProvider: cfg.asrProvider,
       asrBaseUrl: cfg.asrBaseUrl,
       asrModel: cfg.asrModel,
       asrApiKey: cfg.asrApiKey ? MASKED : '',

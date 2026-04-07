@@ -16,7 +16,14 @@ limitations under the License.
 
 import OpenAI from 'openai';
 import fs from 'fs';
-import { aiConfigService } from './aiConfigService';
+import {
+  aiConfigService,
+  defaultAsrModel,
+  DEFAULT_LOCAL_ASR_URL,
+  DEFAULT_NVIDIA_ASR_URL,
+  normalizeAsrProvider,
+  type AsrProvider,
+} from './aiConfigService';
 
 export class AIService {
   private openai: OpenAI | null = null;
@@ -45,6 +52,50 @@ export class AIService {
     return this.openai;
   }
 
+  private getConfiguredAsrClient(config = aiConfigService.getConfig()): { client: OpenAI; model: string; provider: AsrProvider } {
+    const provider = config.asrProvider;
+    const model = config.asrModel || defaultAsrModel(provider);
+
+    if (provider === 'local') {
+      if (!this.asrClient) {
+        this.asrClient = new OpenAI({
+          baseURL: AIService.toBaseUrl(config.asrBaseUrl.trim() || DEFAULT_LOCAL_ASR_URL),
+          apiKey: config.asrApiKey || 'EMPTY',
+        });
+      }
+      return { client: this.asrClient, model, provider };
+    }
+
+    if (provider === 'nvidia') {
+      const apiKey = config.asrApiKey.trim();
+      if (!apiKey) {
+        throw new Error('NVIDIA NIM API Key 未配置');
+      }
+      if (!this.asrClient) {
+        this.asrClient = new OpenAI({
+          baseURL: AIService.toBaseUrl(config.asrBaseUrl.trim() || DEFAULT_NVIDIA_ASR_URL),
+          apiKey,
+        });
+      }
+      return { client: this.asrClient, model, provider };
+    }
+
+    const baseUrl = config.asrBaseUrl.trim();
+    const apiKey = config.asrApiKey.trim();
+    if (!baseUrl && !apiKey) {
+      return { client: this.getClient(), model, provider };
+    }
+
+    if (!this.asrClient) {
+      this.asrClient = new OpenAI({
+        baseURL: baseUrl ? AIService.toBaseUrl(baseUrl) : undefined,
+        apiKey: apiKey || process.env.OPENAI_API_KEY || 'sk-placeholder',
+      });
+    }
+
+    return { client: this.asrClient, model, provider };
+  }
+
   /** 返回用于纪要生成的客户端和模型名。
    *  优先使用自定义 LLM（LLM_BASE_URL），否则回退到 OpenAI GPT-4o。 */
   private getLlmClient(): { client: OpenAI; model: string } {
@@ -64,21 +115,10 @@ export class AIService {
   }
 
   /** 返回用于语音转录的客户端和模型名。
-   *  优先使用本地 ASR 服务（ASR_BASE_URL），否则回退到 OpenAI Whisper。 */
+   *  根据配置选择本地、OpenAI 或 NVIDIA ASR。 */
   private getAsrClient(): { client: OpenAI; model: string } {
-    const cfg = aiConfigService.getConfig();
-    const asrBaseUrl = cfg.asrBaseUrl;
-    if (asrBaseUrl) {
-      if (!this.asrClient) {
-        this.asrClient = new OpenAI({
-          baseURL: AIService.toBaseUrl(asrBaseUrl),
-          apiKey: cfg.asrApiKey || 'EMPTY',
-        });
-      }
-      const model = cfg.asrModel || 'mlx-community/whisper-small-mlx';
-      return { client: this.asrClient, model };
-    }
-    return { client: this.getClient(), model: 'whisper-1' };
+    const { client, model } = this.getConfiguredAsrClient();
+    return { client, model };
   }
 
   async transcribe(filePath: string): Promise<string> {
@@ -145,7 +185,7 @@ export class AIService {
    */
   async testConnection(
     type: 'asr' | 'llm',
-    params: { baseUrl?: string; model?: string; apiKey?: string },
+    params: { provider?: AsrProvider; baseUrl?: string; model?: string; apiKey?: string },
   ): Promise<{ ok: boolean; message: string }> {
     const MASKED = '***set***';
     const stored = aiConfigService.getConfig();
@@ -156,26 +196,43 @@ export class AIService {
 
     try {
       if (type === 'asr') {
+        const provider = normalizeAsrProvider(params.provider ?? stored.asrProvider, {
+          asrBaseUrl: params.baseUrl ?? stored.asrBaseUrl,
+          asrModel: params.model ?? stored.asrModel,
+        });
         const baseUrl = (params.baseUrl ?? stored.asrBaseUrl ?? '').trim();
         const apiKey = resolveKey(params.apiKey, stored.asrApiKey, process.env.OPENAI_API_KEY);
-        const model = params.model || stored.asrModel;
+        const model = params.model || stored.asrModel || defaultAsrModel(provider);
 
-        if (baseUrl) {
-          // Use the standard OpenAI-compatible /v1/models endpoint — works with
-          // both vLLM and our custom asr_server.py (which also exposes it below).
+        if (provider === 'local') {
+          const effectiveBaseUrl = baseUrl || DEFAULT_LOCAL_ASR_URL;
           const client = new OpenAI({
-            baseURL: AIService.toBaseUrl(baseUrl),
+            baseURL: AIService.toBaseUrl(effectiveBaseUrl),
             apiKey: apiKey || 'EMPTY',
           });
           await client.models.list({ timeout: 8000 } as never);
           const latency = Date.now() - start;
           return { ok: true, message: `本地 ASR 连接成功（${latency}ms）${model ? '，模型：' + model : ''}` };
-        } else {
-          if (!apiKey) return { ok: false, message: '未配置 OpenAI API Key' };
-          const client = new OpenAI({ apiKey });
-          await client.models.retrieve('whisper-1', { timeout: 8000 });
-          return { ok: true, message: `OpenAI Whisper-1 可用（${Date.now() - start}ms）` };
         }
+
+        if (provider === 'nvidia') {
+          const effectiveBaseUrl = baseUrl || DEFAULT_NVIDIA_ASR_URL;
+          if (!apiKey) return { ok: false, message: '未配置 NVIDIA API Key' };
+          const client = new OpenAI({
+            baseURL: AIService.toBaseUrl(effectiveBaseUrl),
+            apiKey,
+          });
+          await client.models.list({ timeout: 8000 } as never);
+          return { ok: true, message: `NVIDIA ASR 连接成功（${Date.now() - start}ms）${model ? '，模型：' + model : ''}` };
+        }
+
+        if (!apiKey && !baseUrl) return { ok: false, message: '未配置 OpenAI API Key' };
+        const client = new OpenAI({
+          baseURL: baseUrl ? AIService.toBaseUrl(baseUrl) : undefined,
+          apiKey: apiKey || 'sk-placeholder',
+        });
+        await client.models.retrieve(model || 'whisper-1', { timeout: 8000 });
+        return { ok: true, message: `OpenAI ASR 可用（${Date.now() - start}ms）${model ? '，模型：' + model : ''}` };
       } else {
         const baseUrl = (params.baseUrl ?? stored.llmBaseUrl ?? '').trim();
         const apiKey = resolveKey(params.apiKey, stored.llmApiKey, process.env.OPENAI_API_KEY);

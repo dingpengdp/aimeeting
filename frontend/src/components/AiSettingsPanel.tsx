@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, X, Save, Loader2, CheckCircle, AlertCircle, FlaskConical, Download, Key, Mic, Sparkles } from 'lucide-react';
+import { Settings, X, Save, Loader2, CheckCircle, AlertCircle, FlaskConical, Download, Key, Mic, Sparkles, Mail, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '../services/api';
-import type { AiServiceConfig } from '../types';
+import type { AiServiceConfig, AsrProvider, SmtpConfig } from '../types';
 
 interface AiSettingsPanelProps {
   onClose: () => void;
 }
 
 const MASKED = '***set***';
+const LOCAL_ASR_URL = 'http://localhost:8000';
+const LOCAL_ASR_MODEL = 'mlx-community/whisper-small-mlx';
+const OPENAI_ASR_MODEL = 'whisper-1';
+const NVIDIA_ASR_URL = 'https://integrate.api.nvidia.com/v1';
+const NVIDIA_ASR_MODEL = 'nvidia/parakeet-ctc-1.1b';
 
 
 
@@ -44,6 +49,29 @@ function Field({ label, value, placeholder, type = 'text', hint, onChange }: {
   );
 }
 
+function ToggleField({ label, checked, hint, onChange }: {
+  label: string; checked: boolean; hint?: string; onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs text-slate-400 font-medium">{label}</label>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+          checked
+            ? 'border-meeting-accent bg-meeting-accent/10 text-white'
+            : 'border-meeting-border bg-meeting-bg text-slate-300'
+        }`}
+      >
+        <span>{checked ? 'ON' : 'OFF'}</span>
+        <span className={`h-2.5 w-2.5 rounded-full ${checked ? 'bg-green-400' : 'bg-slate-500'}`} />
+      </button>
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
 function TestButton({ onClick, status, label }: { onClick: () => void; status: string; label: string }) {
   return (
     <button onClick={onClick} disabled={status === 'testing'}
@@ -67,9 +95,26 @@ function TestResult({ status, message }: { status: string; message: string }) {
   );
 }
 
-type Tab = 'hf' | 'asr' | 'llm';
+type Tab = 'asr' | 'llm' | 'smtp';
 type TestState = { status: 'idle' | 'testing' | 'ok' | 'fail'; message: string };
 type DlState = { status: 'idle' | 'checking' | 'cached' | 'needed' | 'downloading' | 'done' | 'error'; percent: number; file: string; total: number; message: string };
+
+const IDLE_DL_STATE: DlState = { status: 'idle', percent: 0, file: '', total: 0, message: '' };
+
+function defaultAsrModel(provider: AsrProvider): string {
+  if (provider === 'local') return LOCAL_ASR_MODEL;
+  if (provider === 'nvidia') return NVIDIA_ASR_MODEL;
+  return OPENAI_ASR_MODEL;
+}
+
+function normalizeAsrConfig(config: AiServiceConfig): AiServiceConfig {
+  const asrProvider = config.asrProvider || (config.asrBaseUrl.trim().includes('nvidia.com') ? 'nvidia' : (config.asrBaseUrl.trim() ? 'local' : 'openai'));
+  return {
+    ...config,
+    asrProvider,
+    asrModel: config.asrModel || defaultAsrModel(asrProvider),
+  };
+}
 
 export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
   const { t } = useTranslation();
@@ -101,12 +146,19 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
     { value: 'id',  label: t('aiSettings.asr.langId') },
   ];
 
+  const ASR_PROVIDERS = [
+    { value: 'local', label: t('aiSettings.asr.providerLocal') },
+    { value: 'openai', label: t('aiSettings.asr.providerOpenAI') },
+    { value: 'nvidia', label: t('aiSettings.asr.providerNvidia') },
+  ];
+
   const [config, setConfig] = useState<AiServiceConfig>({
+    asrProvider: 'openai',
     asrBaseUrl: '', asrModel: '', asrApiKey: '', asrLanguage: '',
     llmBaseUrl: '', llmModel: '', llmApiKey: '',
     hfToken: '',
   });
-  const [activeTab, setActiveTab] = useState<Tab>('hf');
+  const [activeTab, setActiveTab] = useState<Tab>('asr');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -115,26 +167,60 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
   const [hfTest,  setHfTest]  = useState<TestState>({ status: 'idle', message: '' });
   const [asrTest, setAsrTest] = useState<TestState>({ status: 'idle', message: '' });
   const [llmTest, setLlmTest] = useState<TestState>({ status: 'idle', message: '' });
+  const [smtpConfig, setSmtpConfig] = useState<SmtpConfig>({
+    host: '',
+    port: '587',
+    secure: false,
+    from: '',
+    user: '',
+    pass: '',
+  });
+  const [smtpTest, setSmtpTest] = useState<TestState>({ status: 'idle', message: '' });
 
-  const [dlState, setDlState] = useState<DlState>({ status: 'idle', percent: 0, file: '', total: 0, message: '' });
+  const [dlState, setDlState] = useState<DlState>(IDLE_DL_STATE);
   const dlAbortRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    apiFetch<AiServiceConfig>('/api/config/ai')
-      .then((cfg) => setConfig(cfg))
+    Promise.all([
+      apiFetch<AiServiceConfig>('/api/config/ai'),
+      apiFetch<SmtpConfig>('/api/config/smtp'),
+    ])
+      .then(([aiCfg, smtpCfg]) => {
+        const nextConfig = normalizeAsrConfig(aiCfg);
+        setConfig(nextConfig);
+        setSmtpConfig(smtpCfg);
+        if (nextConfig.asrProvider === 'local') {
+          void checkModelCache(nextConfig.asrModel || LOCAL_ASR_MODEL, nextConfig.asrBaseUrl, nextConfig.asrProvider);
+        }
+      })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, []);
 
-  const set = (key: keyof AiServiceConfig) => (v: string) =>
+  useEffect(() => () => {
+    dlAbortRef.current?.();
+  }, []);
+
+  const set = (key: keyof AiServiceConfig) => (v: string) => {
+    setSaved(false);
     setConfig((prev) => ({ ...prev, [key]: v }));
+  };
+
+  const setSmtp = (key: keyof SmtpConfig) => (value: string | boolean) => {
+    setSaved(false);
+    setSmtpConfig((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleSave = async () => {
     setSaving(true); setError(null); setSaved(false);
     try {
-      const updated = await apiFetch<AiServiceConfig>('/api/config/ai', { method: 'PUT', body: JSON.stringify(config) });
-      setConfig(updated); setSaved(true);
-      setTimeout(() => onClose(), 800);
+      const [updatedAi, updatedSmtp] = await Promise.all([
+        apiFetch<AiServiceConfig>('/api/config/ai', { method: 'PUT', body: JSON.stringify(config) }),
+        apiFetch<SmtpConfig>('/api/config/smtp', { method: 'PUT', body: JSON.stringify(smtpConfig) }),
+      ]);
+      setConfig(normalizeAsrConfig(updatedAi));
+      setSmtpConfig(updatedSmtp);
+      setSaved(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t('aiSettings.errors.saveFailed'));
     } finally { setSaving(false); }
@@ -145,7 +231,7 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
     setState({ status: 'testing', message: '' });
     try {
       const body = type === 'asr'
-        ? { type, baseUrl: config.asrBaseUrl, model: config.asrModel, apiKey: config.asrApiKey }
+        ? { type, provider: config.asrProvider, baseUrl: config.asrBaseUrl, model: config.asrModel, apiKey: config.asrApiKey }
         : { type, baseUrl: config.llmBaseUrl, model: config.llmModel, apiKey: config.llmApiKey };
       const result = await apiFetch<{ ok: boolean; message: string }>('/api/config/ai/test', { method: 'POST', body: JSON.stringify(body) });
       setState({ status: result.ok ? 'ok' : 'fail', message: result.message });
@@ -164,11 +250,30 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
     }
   };
 
-  const checkModelCache = async (model: string) => {
-    if (!model || !config.asrBaseUrl.trim()) return;
+  const handleTestSmtp = async () => {
+    setSmtpTest({ status: 'testing', message: '' });
+    try {
+      const result = await apiFetch<{ ok: boolean; message: string }>('/api/config/smtp/test', {
+        method: 'POST',
+        body: JSON.stringify(smtpConfig),
+      });
+      setSmtpTest({ status: result.ok ? 'ok' : 'fail', message: result.message });
+    } catch (e: unknown) {
+      setSmtpTest({ status: 'fail', message: e instanceof Error ? e.message : t('aiSettings.errors.connectionFailed') });
+    }
+  };
+
+  const checkModelCache = async (
+    model: string,
+    baseUrl = config.asrBaseUrl,
+    provider = config.asrProvider,
+  ) => {
+    if (!model || provider !== 'local') return;
+
+    const effectiveBaseUrl = baseUrl.trim() || LOCAL_ASR_URL;
     setDlState({ status: 'checking', percent: 0, file: '', total: 0, message: '' });
     try {
-      const r = await fetch(`/api/asr/check?model=${encodeURIComponent(model)}`, {
+      const r = await fetch(`/api/asr/check?model=${encodeURIComponent(model)}&baseUrl=${encodeURIComponent(effectiveBaseUrl)}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` },
       });
       const data = await r.json() as { cached: boolean };
@@ -180,18 +285,63 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
 
   const handleModelChange = (model: string) => {
     set('asrModel')(model);
-    setDlState({ status: 'idle', percent: 0, file: '', total: 0, message: '' });
+    setDlState(IDLE_DL_STATE);
     void checkModelCache(model);
   };
 
+  const handleAsrProviderChange = (providerValue: string) => {
+    const provider = providerValue as AsrProvider;
+    let nextBaseUrl = config.asrBaseUrl;
+    let nextModel = config.asrModel;
+
+    if (provider === 'local') {
+      nextBaseUrl = config.asrProvider === 'local' ? config.asrBaseUrl : '';
+      if (config.asrProvider !== 'local' || !nextModel.startsWith('mlx-community/')) {
+        nextModel = LOCAL_ASR_MODEL;
+      }
+    } else if (provider === 'openai') {
+      nextBaseUrl = config.asrProvider === 'openai' ? config.asrBaseUrl : '';
+      if (config.asrProvider !== 'openai' || !nextModel || nextModel.startsWith('mlx-community/')) {
+        nextModel = OPENAI_ASR_MODEL;
+      }
+    } else {
+      nextBaseUrl = config.asrProvider === 'nvidia' && config.asrBaseUrl ? config.asrBaseUrl : NVIDIA_ASR_URL;
+      if (config.asrProvider !== 'nvidia' || !nextModel || nextModel.startsWith('mlx-community/')) {
+        nextModel = NVIDIA_ASR_MODEL;
+      }
+    }
+
+    const nextConfig = {
+      ...config,
+      asrProvider: provider,
+      asrBaseUrl: nextBaseUrl,
+      asrModel: nextModel,
+    };
+
+    dlAbortRef.current?.();
+    dlAbortRef.current = null;
+    setSaved(false);
+    setDlState(IDLE_DL_STATE);
+    setAsrTest({ status: 'idle', message: '' });
+    setHfTest({ status: 'idle', message: '' });
+    setConfig(nextConfig);
+
+    if (provider === 'local') {
+      void checkModelCache(nextModel, nextBaseUrl, provider);
+    }
+  };
+
   const startDownload = () => {
+    if (config.asrProvider !== 'local') return;
+
     const model = config.asrModel || ASR_MODELS[0].value;
+    const effectiveBaseUrl = config.asrBaseUrl.trim() || LOCAL_ASR_URL;
     setDlState({ status: 'downloading', percent: 0, file: '', total: 0, message: '' });
     const controller = new AbortController();
     dlAbortRef.current = () => controller.abort();
     (async () => {
       try {
-        const resp = await fetch(`/api/asr/download?model=${encodeURIComponent(model)}`, {
+        const resp = await fetch(`/api/asr/download?model=${encodeURIComponent(model)}&baseUrl=${encodeURIComponent(effectiveBaseUrl)}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` },
           signal: controller.signal,
         });
@@ -223,14 +373,20 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
     })();
   };
 
-  const asrUsingLocal = config.asrBaseUrl.trim() !== '';
+  const asrUsingLocal = config.asrProvider === 'local';
+  const asrUsingOpenAI = config.asrProvider === 'openai';
   const llmUsingLocal = config.llmBaseUrl.trim() !== '';
   const hfConfigured = config.hfToken && config.hfToken !== '';
+  const asrStatusText = asrUsingLocal
+    ? t('aiSettings.asr.usingLocal')
+    : asrUsingOpenAI
+      ? t('aiSettings.asr.usingOpenAI')
+      : t('aiSettings.asr.usingNvidia');
 
   const TABS: { id: Tab; icon: React.ReactNode; label: string; badge?: boolean }[] = [
-    { id: 'hf',  icon: <Key className="w-3.5 h-3.5" />,      label: t('aiSettings.tabs.hfToken'),  badge: !hfConfigured },
     { id: 'asr', icon: <Mic className="w-3.5 h-3.5" />,      label: t('aiSettings.tabs.asr') },
     { id: 'llm', icon: <Sparkles className="w-3.5 h-3.5" />, label: t('aiSettings.tabs.llm') },
+    { id: 'smtp', icon: <Mail className="w-3.5 h-3.5" />, label: t('aiSettings.tabs.smtp') },
   ];
 
   return (
@@ -270,53 +426,55 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* ─── Tab: HF Token ─────────────────────────────────────── */}
-          {activeTab === 'hf' && (
-            <div className="space-y-4">
-              {/* Banner */}
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 space-y-1">
-                <p className="text-amber-300 text-sm font-semibold flex items-center gap-1.5">
-                  <Key className="w-4 h-4" /> HuggingFace Token
-                </p>
-                <p className="text-amber-200/70 text-xs leading-relaxed">
-                  {t('aiSettings.hf.bannerDescPre')} <span className="text-amber-300 font-medium">whisper-large-v3</span> {t('aiSettings.hf.bannerDescMid')}
-                  <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer"
-                    className="underline hover:text-amber-200">huggingface.co/settings/tokens</a> {t('aiSettings.hf.bannerDescSuffix')}
-                </p>
-              </div>
-
-              <Field
-                label={t('aiSettings.hf.label')}
-                value={config.hfToken}
-                type="password"
-                placeholder={config.hfToken === MASKED ? t('aiSettings.hf.placeholderSet') : t('aiSettings.hf.placeholder')}
-                onChange={set('hfToken')}
-                hint={config.hfToken === MASKED ? t('aiSettings.hf.hint') : undefined}
-              />
-
-              <div className="flex items-center gap-2">
-                <TestButton onClick={handleTestHf} status={hfTest.status} label={t('aiSettings.hf.testBtn')} />
-                <TestResult status={hfTest.status} message={hfTest.message} />
-              </div>
-            </div>
-          )}
-
           {/* ─── Tab: ASR ──────────────────────────────────────────── */}
           {activeTab === 'asr' && (
             <div className="space-y-4">
-              <Field
-                label={t('aiSettings.asr.serviceUrl')}
-                value={config.asrBaseUrl}
-                placeholder={t('aiSettings.asr.serviceUrlPlaceholder')}
-                onChange={set('asrBaseUrl')}
-                hint={t('aiSettings.asr.serviceUrlHint')}
+              <SelectField
+                label={t('aiSettings.asr.provider')}
+                value={config.asrProvider}
+                options={ASR_PROVIDERS}
+                hint={t('aiSettings.asr.providerHint')}
+                onChange={handleAsrProviderChange}
               />
 
               {asrUsingLocal ? (
                 <div className="space-y-3">
+                  <Field
+                    label={t('aiSettings.asr.serviceUrl')}
+                    value={config.asrBaseUrl}
+                    placeholder={t('aiSettings.asr.serviceUrlPlaceholder')}
+                    onChange={set('asrBaseUrl')}
+                    hint={t('aiSettings.asr.serviceUrlHint')}
+                  />
+
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 space-y-1">
+                    <p className="text-amber-300 text-sm font-semibold flex items-center gap-1.5">
+                      <Key className="w-4 h-4" /> {t('aiSettings.hf.bannerTitle')}
+                    </p>
+                    <p className="text-amber-200/70 text-xs leading-relaxed">
+                      {t('aiSettings.hf.bannerDescPre')} <span className="text-amber-300 font-medium">whisper-large-v3</span> {t('aiSettings.hf.bannerDescMid')}
+                      <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer"
+                        className="underline hover:text-amber-200">huggingface.co/settings/tokens</a> {t('aiSettings.hf.bannerDescSuffix')}
+                    </p>
+                  </div>
+
+                  <Field
+                    label={t('aiSettings.hf.label')}
+                    value={config.hfToken}
+                    type="password"
+                    placeholder={config.hfToken === MASKED ? t('aiSettings.hf.placeholderSet') : t('aiSettings.hf.placeholder')}
+                    onChange={set('hfToken')}
+                    hint={config.hfToken === MASKED ? t('aiSettings.hf.hint') : undefined}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <TestButton onClick={handleTestHf} status={hfTest.status} label={t('aiSettings.hf.testBtn')} />
+                    <TestResult status={hfTest.status} message={hfTest.message} />
+                  </div>
+
                   <SelectField
                     label={t('aiSettings.asr.model')}
-                    value={config.asrModel || ASR_MODELS[0].value}
+                    value={config.asrModel || LOCAL_ASR_MODEL}
                     options={ASR_MODELS}
                     hint={t('aiSettings.asr.modelHint')}
                     onChange={handleModelChange}
@@ -369,7 +527,32 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
                   )}
                 </div>
               ) : (
-                <Field label={t('aiSettings.asr.modelName')} value={config.asrModel} placeholder={t('aiSettings.asr.modelNamePlaceholder')} onChange={set('asrModel')} />
+                <div className="space-y-4">
+                  <Field
+                    label={t('aiSettings.asr.cloudUrl')}
+                    value={config.asrBaseUrl}
+                    placeholder={asrUsingOpenAI ? t('aiSettings.asr.cloudUrlPlaceholderOpenAI') : t('aiSettings.asr.cloudUrlPlaceholderNvidia')}
+                    onChange={set('asrBaseUrl')}
+                    hint={asrUsingOpenAI ? t('aiSettings.asr.cloudUrlHintOpenAI') : t('aiSettings.asr.cloudUrlHintNvidia')}
+                  />
+
+                  <Field
+                    label={t('aiSettings.asr.modelName')}
+                    value={config.asrModel}
+                    placeholder={asrUsingOpenAI ? t('aiSettings.asr.modelNamePlaceholderOpenAI') : t('aiSettings.asr.modelNamePlaceholderNvidia')}
+                    onChange={set('asrModel')}
+                    hint={t('aiSettings.asr.modelNameHint')}
+                  />
+
+                  <Field
+                    label={t('aiSettings.asr.apiKey')}
+                    value={config.asrApiKey}
+                    type="password"
+                    placeholder={config.asrApiKey === MASKED ? t('aiSettings.asr.apiKeyPlaceholderSet') : t('aiSettings.asr.apiKeyPlaceholderCloud')}
+                    onChange={set('asrApiKey')}
+                    hint={config.asrApiKey === MASKED ? t('aiSettings.asr.apiKeyHint') : undefined}
+                  />
+                </div>
               )}
 
               <SelectField
@@ -380,19 +563,14 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
                 onChange={set('asrLanguage')}
               />
 
-              <Field
-                label={t('aiSettings.asr.apiKey')}
-                value={config.asrApiKey}
-                type="password"
-                placeholder={config.asrApiKey === MASKED ? t('aiSettings.asr.apiKeyPlaceholderSet') : t('aiSettings.asr.apiKeyPlaceholder')}
-                onChange={set('asrApiKey')}
-                hint={config.asrApiKey === MASKED ? t('aiSettings.asr.apiKeyHint') : undefined}
-              />
-
               <div className={`rounded-lg px-3 py-2 text-xs flex items-center gap-2 ${
-                asrUsingLocal ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300' : 'bg-meeting-bg border border-meeting-border text-slate-400'
+                asrUsingLocal
+                  ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300'
+                  : asrUsingOpenAI
+                    ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
+                    : 'bg-amber-500/10 border border-amber-500/20 text-amber-300'
               }`}>
-                {asrUsingLocal ? t('aiSettings.asr.usingLocal') : t('aiSettings.asr.usingOpenAI')}
+                {asrStatusText}
               </div>
 
               <TestButton onClick={() => handleTest('asr')} status={asrTest.status} label={t('aiSettings.asr.testBtn')} />
@@ -435,6 +613,73 @@ export default function AiSettingsPanel({ onClose }: AiSettingsPanelProps) {
 
               <TestButton onClick={() => handleTest('llm')} status={llmTest.status} label={t('aiSettings.llm.testBtn')} />
               <TestResult status={llmTest.status} message={llmTest.message} />
+            </div>
+          )}
+
+          {activeTab === 'smtp' && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 space-y-1">
+                <p className="text-amber-300 text-sm font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" /> {t('aiSettings.smtp.adminOnlyTitle')}
+                </p>
+                <p className="text-amber-200/70 text-xs leading-relaxed">
+                  {t('aiSettings.smtp.adminOnlyDesc')}
+                </p>
+              </div>
+
+              <Field
+                label={t('aiSettings.smtp.host')}
+                value={smtpConfig.host}
+                placeholder={t('aiSettings.smtp.hostPlaceholder')}
+                onChange={setSmtp('host')}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label={t('aiSettings.smtp.port')}
+                  value={smtpConfig.port}
+                  placeholder="587"
+                  onChange={setSmtp('port')}
+                />
+                <ToggleField
+                  label={t('aiSettings.smtp.secure')}
+                  checked={smtpConfig.secure}
+                  hint={t('aiSettings.smtp.secureHint')}
+                  onChange={(checked) => setSmtp('secure')(checked)}
+                />
+              </div>
+
+              <Field
+                label={t('aiSettings.smtp.from')}
+                value={smtpConfig.from}
+                placeholder={t('aiSettings.smtp.fromPlaceholder')}
+                onChange={setSmtp('from')}
+              />
+
+              <Field
+                label={t('aiSettings.smtp.user')}
+                value={smtpConfig.user}
+                placeholder={t('aiSettings.smtp.userPlaceholder')}
+                onChange={setSmtp('user')}
+              />
+
+              <Field
+                label={t('aiSettings.smtp.pass')}
+                value={smtpConfig.pass}
+                type="password"
+                placeholder={smtpConfig.pass === MASKED ? t('aiSettings.smtp.passPlaceholderSet') : t('aiSettings.smtp.passPlaceholder')}
+                onChange={setSmtp('pass')}
+                hint={smtpConfig.pass === MASKED ? t('aiSettings.smtp.passHint') : undefined}
+              />
+
+              <div className="rounded-lg px-3 py-2 text-xs flex items-center gap-2 bg-meeting-bg border border-meeting-border text-slate-400">
+                {smtpConfig.host.trim() && smtpConfig.from.trim()
+                  ? t('aiSettings.smtp.ready')
+                  : t('aiSettings.smtp.notConfigured')}
+              </div>
+
+              <TestButton onClick={handleTestSmtp} status={smtpTest.status} label={t('aiSettings.smtp.testBtn')} />
+              <TestResult status={smtpTest.status} message={smtpTest.message} />
             </div>
           )}
 
