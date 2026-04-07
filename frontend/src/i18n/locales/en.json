@@ -17,7 +17,7 @@
     "registerBtn": "Sign Up",
     "logout": "Sign Out",
     "admin": "Admin",
-    "aiSettings": "AI Service Settings",
+    "aiSettings": "Service Settings",
     "errors": {
       "nameLength": "Name must be 2–50 characters",
       "invalidEmail": "Please enter a valid email address",
@@ -84,7 +84,7 @@
     "invite": "Invite",
     "security": "Security",
     "devices": "Devices",
-    "aiConfig": "AI Config",
+    "aiConfig": "Service Settings",
     "leave": "Leave"
   },
   "chat": {
@@ -221,7 +221,7 @@
     }
   },
   "aiSettings": {
-    "title": "AI Service Settings",
+    "title": "Service Settings",
     "tabs": {
       "asr": "ASR",
       "llm": "LLM",

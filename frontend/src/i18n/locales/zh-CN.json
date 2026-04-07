@@ -17,7 +17,7 @@
     "registerBtn": "注册并登录",
     "logout": "退出登录",
     "admin": "管理员",
-    "aiSettings": "AI 服务配置",
+    "aiSettings": "服务配置",
     "errors": {
       "nameLength": "姓名长度需在 2 到 50 个字符之间",
       "invalidEmail": "请输入有效的邮箱地址",
@@ -84,7 +84,7 @@
     "invite": "邀请",
     "security": "权限",
     "devices": "设备",
-    "aiConfig": "AI配置",
+    "aiConfig": "服务配置",
     "leave": "离开"
   },
   "chat": {
@@ -221,7 +221,7 @@
     }
   },
   "aiSettings": {
-    "title": "AI 服务配置",
+    "title": "服务配置",
     "tabs": {
       "asr": "ASR 语音",
       "llm": "LLM 纪要",
