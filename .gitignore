@@ -9,7 +9,7 @@ coverage/
 backend/data/
 .trae/
 .vscode/
-.github/
+.github/skills/
 .agents/
 .agent/
 _bmad/
