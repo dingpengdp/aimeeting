@@ -351,6 +351,8 @@
   "serverSetup": {
     "title": "连接到服务器",
     "description": "请输入 AiMeeting 后端服务器地址，例如 http://192.168.1.100:3001",
+    "settingsButton": "服务器设置",
+    "reloginNotice": "服务器地址已更新，请重新登录。",
     "urlLabel": "服务器地址",
     "urlPlaceholder": "http://192.168.1.100:3001",
     "connectButton": "连接",

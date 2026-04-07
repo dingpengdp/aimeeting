@@ -144,6 +144,29 @@ docker compose up --build
 docker compose --profile turn up --build
 ```
 
+### 客户端打包
+
+- 仅构建当前机器所在平台的客户端：
+
+```bash
+npm run build:client
+```
+
+- 需要同时输出 macOS、Windows、Linux 三个平台安装包时，使用 GitHub Actions 里的 `Client Bundles` workflow。
+- 可以在 GitHub Actions 页面手动触发 `workflow_dispatch`，也可以推送形如 `client-v0.1.0` 的 tag 自动触发。
+- `workflow_dispatch` 会生成三平台构建 artifacts；推送 `client-v*` tag 时，workflow 还会自动创建或更新对应的 GitHub Release，并把三平台安装包直接挂到 Release 页面。
+- 示例：
+
+```bash
+git tag client-v0.1.0
+git push origin client-v0.1.0
+```
+
+- workflow 会分别产出以下客户端包并上传为构建 artifacts：
+- macOS：`.app`、`.dmg`
+- Windows：`.msi`、`.exe`
+- Linux：`.deb`、`.AppImage`、`.rpm`
+
 ---
 
 ## 使用说明

@@ -22,10 +22,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../services/api';
+import { getServerUrl } from '../lib/config';
+import { isTauri } from '../lib/tauri';
 import type { RoomSummary } from '../types';
 import AiSettingsPanel from '../components/AiSettingsPanel';
 import HomeDeviceSettingsModal from '../components/HomeDeviceSettingsModal';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import ServerSetup from '../components/ServerSetup';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -36,9 +39,12 @@ export default function Home() {
   const [searchParams] = useSearchParams();
   const { user, login, register, logout, isAdmin, isLoading } = useAuth();
   const { t } = useTranslation();
+  const currentServerUrl = getServerUrl() || 'http://';
 
   const [showAiSettings, setShowAiSettings] = useState(false);
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [showServerSetup, setShowServerSetup] = useState(false);
+  const [serverSetupInitialUrl, setServerSetupInitialUrl] = useState(currentServerUrl);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [meetingEntryView, setMeetingEntryView] = useState<'shortcut' | 'create' | 'join'>('shortcut');
 
@@ -285,6 +291,23 @@ export default function Home() {
     setShowDeviceSettings(true);
   };
 
+  const handleOpenServerSettings = () => {
+    setShowToolsMenu(false);
+    setServerSetupInitialUrl(getServerUrl() || 'http://');
+    setShowServerSetup(true);
+  };
+
+  const handleServerConfigured = (nextServerUrl: string) => {
+    setShowServerSetup(false);
+
+    if (user && nextServerUrl !== serverSetupInitialUrl) {
+      logout();
+      setAuthMode('login');
+      setPassword('');
+      setAuthError(t('serverSetup.reloginNotice'));
+    }
+  };
+
   const handleOpenMeetingEntry = (nextMode: 'create' | 'join', nextMeetingType?: 'instant' | 'scheduled') => {
     setError('');
     setMode(nextMode);
@@ -342,8 +365,21 @@ export default function Home() {
         )}
 
         {!user ? (
-          <div className="rounded-full bg-black/15 p-1 backdrop-blur-sm">
-            <LanguageSwitcher iconOnly />
+          <div className="flex items-center gap-2">
+            <div className="rounded-full bg-black/15 p-1 backdrop-blur-sm">
+              <LanguageSwitcher iconOnly />
+            </div>
+            {isTauri() && (
+              <button
+                type="button"
+                onClick={handleOpenServerSettings}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/15 text-slate-200 backdrop-blur-sm transition-colors hover:bg-black/25 hover:text-white"
+                aria-label={t('serverSetup.settingsButton')}
+                title={t('serverSetup.settingsButton')}
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -381,6 +417,17 @@ export default function Home() {
                     <Settings2 className="h-4 w-4" />
                     <span>{t('controls.devices')}</span>
                   </button>
+
+                  {isTauri() && (
+                    <button
+                      type="button"
+                      onClick={handleOpenServerSettings}
+                      className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      <span>{t('serverSetup.settingsButton')}</span>
+                    </button>
+                  )}
 
                   {user && isAdmin && (
                     <button
@@ -737,6 +784,14 @@ export default function Home() {
             <AiSettingsPanel onClose={() => setShowAiSettings(false)} />
           </div>
         </div>
+      )}
+
+      {isTauri() && showServerSetup && (
+        <ServerSetup
+          initialUrl={serverSetupInitialUrl}
+          onConnected={handleServerConfigured}
+          onClose={() => setShowServerSetup(false)}
+        />
       )}
 
       {user && showDeviceSettings && (
